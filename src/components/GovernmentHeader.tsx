@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
-import { router, usePathname } from 'expo-router';
 import type { Href } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   Animated,
@@ -42,8 +42,8 @@ const NAV_ITEMS: NavItem[] = [
  * `common.appName`; the line underneath is always the *other* script so the
  * header reads like a real Indian government website.
  */
-const HINDI_APP_NAME = 'राष्ट्रीय किसान क्रय पोर्टल';
-const ENGLISH_APP_NAME = 'National Farmer Procurement Portal';
+const HINDI_APP_NAME = 'राष्ट्रीय किसान क्रय';
+const ENGLISH_APP_NAME = 'National Farmer Procurement';
 
 const LANG_OPTIONS: { code: LanguageCode; label: string }[] = [
   { code: 'en', label: 'English' },
