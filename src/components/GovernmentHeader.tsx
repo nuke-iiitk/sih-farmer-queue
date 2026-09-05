@@ -212,8 +212,7 @@ export default function GovernmentHeader() {
           </View>
         </View>
 
-        {/* Flag + language switch: desktop only. On phones the switch lives in
-            the nav bar (see below) so it can never overlap the brand text. */}
+        {/* Desktop: flag + language switch. Compact: quick search + login. */}
         {!compact ? (
           <View style={styles.brandRight}>
             <Image
@@ -224,7 +223,28 @@ export default function GovernmentHeader() {
             />
             {renderLangRow(false)}
           </View>
-        ) : null}
+        ) : (
+          <View style={styles.brandActions}>
+            <Pressable
+              onPress={() => navigate(path.centres)}
+              accessibilityRole="button"
+              accessibilityLabel={t('header.search')}
+              style={({ pressed }) => [styles.headerIconBtn, pressed && styles.headerIconBtnPressed]}
+            >
+              <BootstrapIcon name="bi-search" fallback="search" size={15} color={Colors.primaryDark} />
+            </Pressable>
+            <Pressable
+              onPress={() => navigate(path.login)}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.loginBtnSm, pressed && styles.loginBtnSmPressed]}
+            >
+              <View style={styles.loginRow}>
+                <BootstrapIcon name="bi-box-arrow-in-right" fallback="log-in" size={12} color={Colors.white} />
+                <Text style={[styles.loginBtnText, { fontSize: fs(11) }]}>{t('nav.login')}</Text>
+              </View>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       {/* Navigation row: hamburger (mobile) or links + search + login (desktop) */}
@@ -314,31 +334,6 @@ export default function GovernmentHeader() {
               />
             );
           })}
-          <View style={styles.mobileSearchRow}>
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder={t('header.search')}
-              placeholderTextColor={Colors.textMuted}
-              style={[styles.mobileSearchInput, { fontSize: fs(13) }]}
-              onSubmitEditing={submitSearch}
-              accessibilityLabel={t('header.search')}
-            />
-            <Pressable onPress={submitSearch} style={styles.mobileSearchBtn} accessibilityRole="button">
-              <BootstrapIcon name="bi-search" fallback="search" size={13} color={Colors.white} />
-              <Text style={[styles.mobileSearchBtnText, { fontSize: fs(13) }]}>{t('header.searchBtn')}</Text>
-            </Pressable>
-          </View>
-          <Pressable
-            onPress={() => navigate(path.login)}
-            style={styles.mobileLogin}
-            accessibilityRole="button"
-          >
-            <View style={styles.loginRow}>
-              <BootstrapIcon name="bi-box-arrow-in-right" fallback="log-in" size={14} color={Colors.white} />
-              <Text style={[styles.mobileLoginText, { fontSize: fs(14) }]}>{t('nav.login')}</Text>
-            </View>
-          </Pressable>
         </View>
       ) : null}
     </View>
@@ -535,6 +530,40 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  /* Compact quick actions on the brand row (search + login) */
+  brandActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
+  },
+  headerIconBtn: {
+    minWidth: 34,
+    height: 34,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.white,
+    borderRadius: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerIconBtnPressed: {
+    backgroundColor: Colors.primaryLight,
+  },
+  loginBtnSm: {
+    height: 34,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: Colors.primaryDark,
+    backgroundColor: Colors.primaryDark,
+    borderRadius: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loginBtnSmPressed: {
+    opacity: 0.85,
+  },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -623,45 +652,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: Spacing.sm,
     gap: 6,
-  },
-  mobileSearchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.borderDark,
-    backgroundColor: Colors.surfaceAlt,
-  },
-  mobileSearchInput: {
-    flex: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    color: Colors.text,
-  },
-  mobileSearchBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  mobileSearchBtnText: {
-    color: Colors.white,
-    fontWeight: '700',
-  },
-  mobileLogin: {
-    marginTop: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.primaryDark,
-    backgroundColor: Colors.primaryDark,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mobileLoginText: {
-    color: Colors.white,
-    fontWeight: '800',
-    letterSpacing: 0.5,
   },
 });
