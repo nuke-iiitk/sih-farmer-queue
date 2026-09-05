@@ -1,0 +1,107 @@
+/* ============================================================
+   Brand theme layer over Bootstrap 5 — National Farmer Procurement Portal
+   Loaded AFTER bootstrap.min.css; overrides design tokens so Bootstrap
+   components match the gov navy/saffron identity + Arial system font.
+   ============================================================ */
+
+:root {
+  --bs-primary: #0d47a1;
+  --bs-primary-rgb: 13, 71, 161;
+  --bs-link-color: #0d47a1;
+  --bs-link-color-rgb: 13, 71, 161;
+  --bs-link-hover-color: #0a2f6b;
+  --bs-link-hover-color-rgb: 10, 47, 107;
+  --bs-warning: #e65100;
+  --bs-warning-rgb: 230, 81, 0;
+  --bs-success: #15803d;
+  --bs-success-rgb: 21, 128, 61;
+  --bs-danger: #b3261e;
+  --bs-danger-rgb: 179, 38, 30;
+  --bs-body-font-family: Arial, Helvetica, 'Noto Sans Devanagari', 'Noto Sans Malayalam', system-ui, sans-serif;
+  --bs-body-color: #1f2933;
+  --bs-border-radius: 4px;
+  --bs-border-radius-sm: 3px;
+  --bs-border-radius-lg: 8px;
+}
+
+/* Buttons: slightly denser, gov-tone hover states */
+.btn {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.btn-primary {
+  --bs-btn-bg: #0d47a1;
+  --bs-btn-border-color: #0d47a1;
+  --bs-btn-hover-bg: #0a2f6b;
+  --bs-btn-hover-border-color: #0a2f6b;
+  --bs-btn-active-bg: #08255a;
+  --bs-btn-active-border-color: #08255a;
+  --bs-btn-disabled-bg: #0d47a1;
+  --bs-btn-disabled-border-color: #0d47a1;
+}
+.btn-outline-primary {
+  --bs-btn-color: #0d47a1;
+  --bs-btn-border-color: #0d47a1;
+  --bs-btn-hover-bg: #0d47a1;
+  --bs-btn-hover-border-color: #0d47a1;
+  --bs-btn-active-bg: #0a2f6b;
+  --bs-btn-active-border-color: #0a2f6b;
+  --bs-btn-disabled-color: #0d47a1;
+  --bs-btn-disabled-border-color: #0d47a1;
+}
+
+/* Badges & alerts */
+.badge {
+  letter-spacing: 0.4px;
+}
+.text-bg-warning {
+  color: #fff !important;
+  background-color: #e65100 !important;
+}
+
+/* Focus ring in brand navy */
+:focus-visible {
+  outline-color: #0d47a1;
+}
+
+/* Buttons/badges/alerts follow the body font (Arial) */
+.btn,
+.badge,
+.alert {
+  font-family: inherit;
+}
+
+/* Keep icon fonts intact no matter what Bootstrap sets */
+.oi-icon,
+[data-icon] {
+  font-family: 'Ionicons' !important;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Animated header nav buttons (NavButton.web)
+   Rectangular Bootstrap outline buttons, side by side with a gap.
+   Press squashes the button. No underline sweep, no pipe.
+   ──────────────────────────────────────────────────────────── */
+.fpp-nav-btn {
+  border-radius: 2px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* Pressed: squash */
+.fpp-nav-btn:active {
+  transform: scale(0.97);
+}
+
+/* Accessible focus ring in saffron */
+.fpp-nav-btn:focus-visible {
+  outline: 2px solid #ffb300;
+  outline-offset: 2px;
+}

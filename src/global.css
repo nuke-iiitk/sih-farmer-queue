@@ -1,0 +1,17 @@
+:root {
+  --font-display:
+    Arial, Helvetica, ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Noto Sans Devanagari',
+    'Noto Sans Malayalam', sans-serif, Apple Color Emoji, Segoe UI Emoji;
+  --font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
+  --font-rounded:
+    Arial, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
+  --font-serif:
+    Arial, Georgia, 'Times New Roman', serif;
+}
+
+/* Explicit body stack: guarantees form controls (button/input/select) that
+   use `font-family: inherit` land on Arial too. */
+body {
+  font-family: var(--font-display);
+}
