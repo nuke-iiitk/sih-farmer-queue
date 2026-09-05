@@ -64,6 +64,7 @@ export default function GovernmentHeader() {
   const [search, setSearch] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const compact = width < 768;
+  const phone = width < 600;
   const [emblemScale] = useState(() => new Animated.Value(1));
 
   const springEmblem = (toValue: number) => {
@@ -101,51 +102,82 @@ export default function GovernmentHeader() {
     [language]
   );
 
+  /** Segmented English/हिन्दी/മലയാളം switch. `tight` = slim paddings for the phone nav bar. */
+  const renderLangRow = (tight: boolean) => (
+    <View style={[styles.langRow, tight && styles.langRowTight]}>
+      {LANG_OPTIONS.map((lang) => (
+        <Pressable
+          key={lang.code}
+          onPress={() => setLanguage(lang.code)}
+          style={[styles.langBtn, tight && styles.langBtnTight, language === lang.code && styles.langBtnActive]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: language === lang.code }}
+          accessibilityLabel={lang.label}
+        >
+          <Text
+            style={[
+              styles.langBtnText,
+              { fontSize: fs(11) },
+              language === lang.code && styles.langBtnTextActive,
+            ]}
+          >
+            {lang.label}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      {/* Utility strip — accessibility controls (authentic gov-portal touch) */}
-      <View style={styles.utilityBar}>
-        <View style={styles.utilityLeft}>
-          <Pressable onPress={skipToContent} accessibilityRole="link">
-            <Text style={[styles.utilityLink, { fontSize: fs(11) }]}>{t('top.skip')} |</Text>
-          </Pressable>
-          <Text style={[styles.utilityLink, { fontSize: fs(11) }]}>{t('top.screenReader')} |</Text>
-        </View>
-        <View style={styles.utilityRight}>
-          <Text style={[styles.utilityMuted, { fontSize: fs(11) }]}>{t('top.textSize')}:</Text>
-          {TEXT_SIZES.map((option) => (
-            <Pressable
-              key={option.level}
-              onPress={() => setTextSize(option.level)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: textSize === option.level }}
-              style={[styles.sizeBtn, textSize === option.level && styles.sizeBtnActive]}
-            >
-              <Text
-                style={[
-                  styles.sizeBtnText,
-                  { fontSize: option.level === 'small' ? 9 : option.level === 'large' ? 12 : 10 },
-                  textSize === option.level && styles.sizeBtnTextActive,
-                ]}
-              >
-                {option.label}
-              </Text>
+      {/* Utility strip — accessibility controls (desktop/tablet only; on phones
+          this row cramped, overlapped and added pure noise). */}
+      {!compact ? (
+        <View style={styles.utilityBar}>
+          <View style={styles.utilityLeft}>
+            <Pressable onPress={skipToContent} accessibilityRole="link">
+              <Text style={[styles.utilityLink, { fontSize: fs(11) }]}>{t('top.skip')} |</Text>
             </Pressable>
-          ))}
-          <Text style={[styles.utilityMuted, { fontSize: fs(11) }]}>| {t('top.language')}: {langLabel}</Text>
+            <Text style={[styles.utilityLink, { fontSize: fs(11) }]}>{t('top.screenReader')} |</Text>
+          </View>
+          <View style={styles.utilityRight}>
+            <Text style={[styles.utilityMuted, { fontSize: fs(11) }]}>{t('top.textSize')}:</Text>
+            {TEXT_SIZES.map((option) => (
+              <Pressable
+                key={option.level}
+                onPress={() => setTextSize(option.level)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: textSize === option.level }}
+                style={[styles.sizeBtn, textSize === option.level && styles.sizeBtnActive]}
+              >
+                <Text
+                  style={[
+                    styles.sizeBtnText,
+                    { fontSize: option.level === 'small' ? 9 : option.level === 'large' ? 12 : 10 },
+                    textSize === option.level && styles.sizeBtnTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            ))}
+            <Text style={[styles.utilityMuted, { fontSize: fs(11) }]}>| {t('top.language')}: {langLabel}</Text>
+          </View>
         </View>
-      </View>
+      ) : null}
 
-      {/* Government identity strip */}
-      <View style={styles.topBar}>
-        <Text style={[styles.govText, { fontSize: fs(13) }]}>
+      {/* Government identity strip — one slim line on compact screens */}
+      <View style={[styles.topBar, compact && styles.topBarCompact]}>
+        <Text style={[styles.govText, { fontSize: compact ? fs(11) : fs(13) }]}>
           भारत सरकार / Government of India
         </Text>
-        <Text style={[styles.deptText, { fontSize: fs(11) }]}>{t('common.gov')}</Text>
+        {!compact ? (
+          <Text style={[styles.deptText, { fontSize: fs(11) }]}>{t('common.gov')}</Text>
+        ) : null}
       </View>
 
-      {/* Brand bar with National Emblem + Flag */}
-      <View style={[styles.brandBar, compact && styles.brandBarCompact]}>
+      {/* Brand bar with National Emblem (+ Flag & language switch on desktop) */}
+      <View style={[styles.brandBar, compact && styles.brandBarCompact, phone && styles.brandBarPhone]}>
         <View style={[styles.brandLeft, compact && styles.brandLeftCompact]}>
           <Animated.View style={{ transform: [{ scale: emblemScale }] }}>
             <Pressable
@@ -158,79 +190,68 @@ export default function GovernmentHeader() {
             >
               <Image
                 source={require('../assets/emblem.svg')}
-                style={styles.emblem}
+                style={[styles.emblem, phone && styles.emblemPhone]}
                 contentFit="contain"
                 accessibilityLabel="State Emblem of India"
               />
             </Pressable>
           </Animated.View>
           {!compact ? <View style={styles.brandDivider} /> : null}
-          <View style={styles.brandText}>
-            <Text style={[styles.portalName, { fontSize: fs(compact ? 16 : 19) }]} numberOfLines={2}>
+          <View style={[styles.brandText, compact && styles.brandTextCompact]}>
+            <Text style={[styles.portalName, { fontSize: fs(phone ? 15 : compact ? 16 : 19) }]} numberOfLines={1}>
               {t('common.appName')}
             </Text>
-            <Text style={[styles.portalNameLocal, { fontSize: fs(compact ? 11 : 12) }]} numberOfLines={1}>
-              {language === 'hi' ? ENGLISH_APP_NAME : HINDI_APP_NAME}
-            </Text>
+            {!phone ? (
+              <Text style={[styles.portalNameLocal, { fontSize: fs(compact ? 11 : 12) }]} numberOfLines={1}>
+                {language === 'hi' ? ENGLISH_APP_NAME : HINDI_APP_NAME}
+              </Text>
+            ) : null}
             {!compact ? (
               <Text style={[styles.portalTagline, { fontSize: fs(11) }]}>{t('common.tagline')}</Text>
             ) : null}
           </View>
         </View>
 
-        <View style={styles.brandRight}>
-          {!compact ? (
+        {/* Flag + language switch: desktop only. On phones the switch lives in
+            the nav bar (see below) so it can never overlap the brand text. */}
+        {!compact ? (
+          <View style={styles.brandRight}>
             <Image
               source={require('../assets/flag.svg')}
               style={styles.flag}
               contentFit="contain"
               accessibilityLabel="Flag of India"
             />
-          ) : null}
-          <View style={styles.langRow}>
-            {LANG_OPTIONS.map((lang) => (
-              <Pressable
-                key={lang.code}
-                onPress={() => setLanguage(lang.code)}
-                style={[styles.langBtn, language === lang.code && styles.langBtnActive]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: language === lang.code }}
-              >
-                <Text
-                  style={[
-                    styles.langBtnText,
-                    { fontSize: fs(11) },
-                    language === lang.code && styles.langBtnTextActive,
-                  ]}
-                >
-                  {lang.label}
-                </Text>
-              </Pressable>
-            ))}
+            {renderLangRow(false)}
           </View>
-        </View>
+        ) : null}
       </View>
 
       {/* Navigation row: hamburger (mobile) or links + search + login (desktop) */}
       <View style={styles.navRow}>
         {compact ? (
-          <Pressable
-            onPress={() => setMenuOpen((v) => !v)}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: menuOpen }}
-            accessibilityLabel={menuOpen ? t('common.close') : t('nav.menu')}
-            style={styles.menuBtn}
-          >
-            <BootstrapIcon
-              name={menuOpen ? 'bi-x-lg' : 'bi-list'}
-              fallback={menuOpen ? 'close' : 'menu'}
-              size={20}
-              color={Colors.primaryDark}
-            />
-            <Text style={[styles.menuBtnText, { fontSize: fs(12) }]}>
-              {menuOpen ? t('common.close') : t('nav.menu')}
-            </Text>
-          </Pressable>
+          <>
+            <Pressable
+              onPress={() => setMenuOpen((v) => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: menuOpen }}
+              accessibilityLabel={menuOpen ? t('common.close') : t('nav.menu')}
+              style={styles.menuBtn}
+            >
+              <BootstrapIcon
+                name={menuOpen ? 'bi-x-lg' : 'bi-list'}
+                fallback={menuOpen ? 'close' : 'menu'}
+                size={20}
+                color={Colors.primaryDark}
+              />
+              <Text style={[styles.menuBtnText, { fontSize: fs(12) }]}>
+                {menuOpen ? t('common.close') : t('nav.menu')}
+              </Text>
+            </Pressable>
+            {/* Language switch pinned to the right of the nav bar — fixed row,
+                never wraps or overlaps the hamburger. */}
+            {renderLangRow(true)}
+          </>
         ) : (
           <>
             <View style={styles.navLinks}>
@@ -491,6 +512,28 @@ const styles = StyleSheet.create({
   },
   langBtnTextActive: {
     color: Colors.white,
+  },
+  /* Phone variants — slim segmented switch for the mobile nav bar */
+  langRowTight: {
+    flexShrink: 0,
+  },
+  langBtnTight: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  topBarCompact: {
+    paddingVertical: 4,
+  },
+  brandBarPhone: {
+    paddingVertical: 10,
+  },
+  emblemPhone: {
+    width: 28,
+    height: 37,
+  },
+  brandTextCompact: {
+    flex: 1,
+    minWidth: 0,
   },
   navRow: {
     flexDirection: 'row',
