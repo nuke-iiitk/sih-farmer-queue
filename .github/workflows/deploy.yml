@@ -5,8 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Allow only one concurrent deployment, skipping runs queued between the run
-# in-progress and the latest queued. Don't cancel in-progress runs, though.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -32,11 +30,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
       - name: Static export (Expo web)
         run: npx expo export --platform web
+        env:
+                    EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://kisan-api.loca.lt' }}
+          EXPO_PUBLIC_USE_BACKEND: ${{ vars.EXPO_PUBLIC_USE_BACKEND || 'true' }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

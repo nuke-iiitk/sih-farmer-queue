@@ -63,17 +63,19 @@ export default function LoginScreen() {
     setSubmitted(true);
     if (Object.keys(nextErrors).length > 0) return;
 
-    const result = loginFarmer(
-      mobile,
-      mode === 'password' ? password : undefined,
-      mode === 'otp' ? otp : undefined
-    );
-    if (!result.ok) {
-      const key = result.error ?? 'login.errOtp';
-      setErrors({ secret: t(key as never) });
-      return;
-    }
-    router.replace(path.dashboard as never);
+    void (async () => {
+      const result = await loginFarmer(
+        mobile,
+        mode === 'password' ? password : undefined,
+        mode === 'otp' ? otp : undefined
+      );
+      if (!result.ok) {
+        const key = result.error ?? 'login.errOtp';
+        setErrors({ secret: t(key as never) });
+        return;
+      }
+      router.replace(path.dashboard as never);
+    })();
   }
 
   return (

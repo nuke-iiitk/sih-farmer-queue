@@ -86,6 +86,8 @@ export type Booking = {
 };
 
 export type QueueEntry = {
+  /** Backend queue-entry id (present when the entry came from PostgreSQL). */
+  id?: string;
   token: string;
   farmerName: string;
   slot: string; // display e.g. "10:30"

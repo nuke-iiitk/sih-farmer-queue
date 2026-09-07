@@ -77,20 +77,23 @@ export default function BookingScreen() {
       setSlotError(t('book.slotTaken'));
       return;
     }
-    const result = createBooking({
-      centreId,
-      date: selectedDate,
-      slotStart: slot.start,
-      slotEnd: slot.end,
-      produce: farmer?.crop ?? 'Paddy',
-      quantityKg: farmer?.quantityKg ?? '850',
-    });
-    if (!result.ok) {
-      setSlotError(t((result.error ?? 'book.slotTaken') as TranslationKey));
-      return;
-    }
-    setConfirmedBooking(result.booking);
-    setStep(3);
+    void (async () => {
+      const result = await createBooking({
+        centreId,
+        date: selectedDate,
+        slotStart: slot.start,
+        slotEnd: slot.end,
+        produce: farmer?.crop ?? 'Paddy',
+        quantityKg: farmer?.quantityKg ?? '850',
+        slotId: slot.id,
+      });
+      if (!result.ok) {
+        setSlotError(t((result.error ?? 'book.slotTaken') as TranslationKey));
+        return;
+      }
+      setConfirmedBooking(result.booking);
+      setStep(3);
+    })();
   }
 
   return (

@@ -2,6 +2,26 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## Backend (FastAPI + PostgreSQL)
+
+The app is wired to a FastAPI + PostgreSQL backend in [`backend/`](backend/README.md).
+Quick start:
+
+```bash
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head        # apply PostgreSQL migrations
+python -m app.services.seed # fictitious demo data (idempotent)
+uvicorn app.main:app --reload
+```
+
+The frontend talks to it through `src/services/api.ts`, whose base URL comes
+from `EXPO_PUBLIC_API_URL` (see `.env.example` at the repo root; Android
+emulators default to `http://10.0.2.2:8000`). Bundled mock data remains as an
+automatic fallback whenever the backend is unreachable, and
+`EXPO_PUBLIC_USE_BACKEND=false` forces pure demo mode.
+
 ## Get started
 
 1. Install dependencies
