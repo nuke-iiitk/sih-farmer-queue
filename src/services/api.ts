@@ -32,17 +32,51 @@ import type {
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
 // ------------------------------------------------------------ base URL
+//
+// The FastAPI backend can be reached via several URLs. The client tries them
+// in priority order and uses the first one that actually talks to OUR backend:
+//   1. EXPO_PUBLIC_API_URL (set at build time — GitHub Actions / .env) — recommended.
 
+//   2. Public dev tunnels (listed below). During development the backend runs on
+//      one machine behind a tunnel so phones/other laptops can reach it:
+//        • Cloudflare quick tunnel (trycloudflare.com — no interstitial page,
+//          works for real browser fetch requests).
+//        • localtunnel (loca.lt — shows an interstitial "Tunnel website ahead!"
+//          page for browser agents — the client auto-skips it because it returns
+//          HTML instead of JSON, then falls through to the next candidate).
+//   3. Platform defaults (localhost etc.) — only for one local dev machine.
+
+
+
+
+
+const PUBLIC_TUNNEL_URLS: string[] = [
+  'https://crop-overhead-talk-delivering.trycloudflare.com',
+  'https://kisan-api.loca.lt',
+];
+
+/** All candidate base URLs, most-preferred first, deduped, no trailing slashes. */
+export function getApiBaseCandidates(): string[] {
+  const result: string[] = [];
+  const push = (u: string | undefined) => {
+   if (!u) return;
+   const clean = u.trim().replace(/\/+$/, '');
+   if (clean && !result.includes(clean)) result.push(clean);
+ };
+ push(process.env.EXPO_PUBLIC_API_URL);
+ PUBLIC_TUNNEL_URLS.forEach(push);
+ // Platform defaults — only meaningful on ONE local dev machine.
+
+
+
+ if (Platform.OS === 'android') push('http://10.0.2.2:8000');
+ push('http://localhost:8000');
+ return result;
+}
+
+/** Primary base URL (first candidate — informational / backward-compat). */
 export function getApiBaseUrl(): string {
-  const fromEnv = process.env.EXPO_PUBLIC_API_URL;
-  if (fromEnv && fromEnv.trim().length > 0) {
-    return fromEnv.trim().replace(/\/+$/, '');
-  }
-  if (Platform.OS === 'android') {
-    // Android emulator reaches the host machine via 10.0.2.2.
-    return 'http://10.0.2.2:8000';
-  }
-  return 'http://localhost:8000';
+  return getApiBaseCandidates()[0] ?? 'http://localhost:8000';
 }
 
 export const API_BASE_URL = getApiBaseUrl();
@@ -70,45 +104,78 @@ export function setOfficerToken(token: string | null) {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
-  const url = `${API_BASE_URL}${path}`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(officerToken ? { Authorization: `Bearer ${officerToken}` } : {}),
-        ...init?.headers,
-      },
-    });
-    if (response.status === 204) return { ok: true, data: undefined as T };
-    const text = await response.text();
-    const body = text.length > 0 ? (JSON.parse(text) as Record<string, unknown>) : {};
-    if (!response.ok) {
-      const detail = typeof body.detail === 'string' ? body.detail : undefined;
-      switch (response.status) {
-        case 401:
-          return { ok: false, error: detail ?? 'AUTH' };
-        case 404:
-          return { ok: false, error: detail ?? 'NOT_FOUND' };
-        case 409:
-          return { ok: false, error: detail ?? 'CONFLICT' };
-        case 422:
-          return { ok: false, error: detail ?? 'VALIDATION' };
-        default:
-          return { ok: false, error: detail ?? `HTTP_${response.status}` };
+  // Try each candidate base URL in order. A candidate is skipped when it cannot
+  // reach OUR backend — e.g. network failure, timeout, or a tunnel that returns
+  // HTML instead of JSON (like localtunnel's interstitial page for browser agents).
+  // HTTP business errors (4xx/5xx with JSON `detail`) come from OUR API and are
+  // authoritative — we return them immediately without trying other candidates.
+
+
+
+  const candidates = getApiBaseCandidates();
+  let lastError: ApiResult<T> | null = null;
+  for (const base of candidates) {
+    const url = `${base}${path}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(officerToken ? { Authorization: `Bearer ${officerToken}` } : {}),
+          ...init?.headers,
+        },
+      });
+      if (response.status === 204) return { ok: true, data: undefined as T };
+      const text = await response.text();
+      let body: Record<string, unknown> = {};
+      if (text.length > 0) {
+        try {
+          body = JSON.parse(text) as Record<string, unknown>;
+        } catch {
+          // Not our API — e.g. a tunnel interstitial/proxy HTML page. Skip this base.
+
+
+
+          continue;
+
+        }
       }
+      if (!response.ok) {
+        const detail = typeof body.detail === 'string' ? body.detail : undefined;
+        switch (response.status) {
+          case 401:
+            return { ok: false, error: detail ?? 'AUTH' };
+          case 404:
+            return { ok: false, error: detail ?? 'NOT_FOUND' };
+          case 409:
+            return { ok: false, error: detail ?? 'CONFLICT' };
+          case 422:
+            return { ok: false, error: detail ?? 'VALIDATION' };
+          default:
+            return { ok: false, error: detail ?? `HTTP_${response.status}` };
+        }
+      }
+      return { ok: true, data: body as T };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.toLowerCase().includes('abort')) {
+        lastError = { ok: false, error: 'TIMEOUT' };
+      } else {
+        lastError = { ok: false, error: 'NETWORK_ERROR' };
+      }
+      // Try the next candidate — maybe another tunnel/localhost is reachable.
+
+
+
+    } finally {
+      clearTimeout(timer);
     }
-    return { ok: true, data: body as T };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.toLowerCase().includes('abort')) return { ok: false, error: 'TIMEOUT' };
-    return { ok: false, error: 'NETWORK_ERROR' };
-  } finally {
-    clearTimeout(timer);
   }
+  return lastError ?? { ok: false, error: 'NETWORK_ERROR' };
+
 }
 
 function get<T>(path: string): Promise<ApiResult<T>> {
