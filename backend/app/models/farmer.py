@@ -40,9 +40,9 @@ class Farmer(Base, TimestampMixin):
     state: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     district: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     village: Mapped[Optional[str]] = mapped_column(String(96), nullable=True)
-    land_size_acres: Mapped[Optional[Decimal]] = mapped_column(Numeric(6, 2), nullable=True)
+    land_size_acres: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), nullable=True)
     preferred_crop: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    quantity_kg: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2), nullable=True)
+    quantity_kg: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2), nullable=True)
     preferred_centre_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("procurement_centres.id", ondelete="SET NULL"), nullable=True
     )

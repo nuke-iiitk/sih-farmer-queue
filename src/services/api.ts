@@ -51,6 +51,7 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
 
 const PUBLIC_TUNNEL_URLS: string[] = [
+  'https://projector-statewide-david-carries.trycloudflare.com',
   'https://crop-overhead-talk-delivering.trycloudflare.com',
   'https://kisan-api.loca.lt',
 ];
