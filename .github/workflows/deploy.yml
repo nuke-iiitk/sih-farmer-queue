@@ -33,7 +33,7 @@ jobs:
       - name: Static export (Expo web)
         run: npx expo export --platform web
         env:
-                    EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://kisan-api.loca.lt' }}
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://kisan-api.loca.lt' }}
           EXPO_PUBLIC_USE_BACKEND: ${{ vars.EXPO_PUBLIC_USE_BACKEND || 'true' }}
 
       - name: Upload Pages artifact
