@@ -1,6 +1,7 @@
 """Farmer creation/update logic shared by /api/auth and /api/farmers."""
 
 from __future__ import annotations
+import re
 
 from datetime import date
 
@@ -33,13 +34,23 @@ async def create_farmer(db: AsyncSession, payload: FarmerRegisterRequest) -> Far
         )
 
     preferred_centre_id = await resolve_preferred_centre(db, payload.preferred_centre_id)
+
+    # Normalise real-world input from the frontend (tolerant of autofill/keyboard quirks).
+    _aadhaar = re.sub(r"\D+", "", payload.aadhaar or "") if payload.aadhaar else None
+    _dob = None
+    if payload.date_of_birth:
+        try:
+            _dob = parse_dob(payload.date_of_birth)
+        except (ValueError, TypeError):
+            _dob = None  # frontend already validates DD/MM/YYYY; be safe here
+
     farmer = Farmer(
         farmer_code=await _farmer_code(db),
         name=payload.name.strip(),
         phone=phone,
         email=str(payload.email) if payload.email else None,
-        aadhaar_hash=hash_aadhaar(payload.aadhaar) if payload.aadhaar else None,
-        date_of_birth=parse_dob(payload.date_of_birth),
+        aadhaar_hash=hash_aadhaar(_aadhaar) if _aadhaar else None,
+        date_of_birth=_dob,
         address=payload.address,
         state=payload.state,
         district=payload.district,
