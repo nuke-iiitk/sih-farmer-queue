@@ -72,7 +72,7 @@ export default function HomeScreen() {
               <View style={styles.statusRow}>
                 <View style={styles.statusRowLeft}>
                   <Ionicons name="people" size={15} color={Colors.primary} />
-                  <Text style={[styles.statusLabel, { fontSize: fs(11) }]}>Farmers Processed</Text>
+                  <Text style={[styles.statusLabel, { fontSize: fs(11) }]}>Farmers Served</Text>
                 </View>
                 <Text style={[styles.statusValue, { fontSize: fs(14) }]}>{analyticsSummary.farmersProcessed}</Text>
               </View>
@@ -80,7 +80,7 @@ export default function HomeScreen() {
               <View style={styles.statusRow}>
                 <View style={styles.statusRowLeft}>
                   <Ionicons name="pie-chart" size={15} color={Colors.saffronDark} />
-                  <Text style={[styles.statusLabel, { fontSize: fs(11) }]}>Capacity Used</Text>
+                  <Text style={[styles.statusLabel, { fontSize: fs(11) }]}>Capacity Utilisation</Text>
                 </View>
                 <Text style={[styles.statusValue, { fontSize: fs(14) }]}>{analyticsSummary.capacityUsedPercent}%</Text>
               </View>
@@ -94,7 +94,7 @@ export default function HomeScreen() {
         
         {/* Left Column: Services & Process */}
         <View style={styles.mainCol}>
-          <SectionHeading title="Important Services" />
+          <SectionHeading title={t('landing.servicesTitle')} />
           <View style={styles.serviceList}>
             {[
               {
