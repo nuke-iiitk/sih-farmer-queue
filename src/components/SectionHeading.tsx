@@ -16,8 +16,10 @@ export default function SectionHeading({
   return (
     <View style={styles.wrap}>
       <View style={styles.row}>
-        <View style={styles.accent} />
-        <Text style={[styles.title, { fontSize: fs(20) }]}>{title}</Text>
+        <View style={styles.titleWrap}>
+          <Text style={[styles.title, { fontSize: fs(19) }]}>{title}</Text>
+          <View style={styles.accent} />
+        </View>
         {right}
       </View>
       {subtitle ? <Text style={[styles.subtitle, { fontSize: fs(14) }]}>{subtitle}</Text> : null}
@@ -28,9 +30,6 @@ export default function SectionHeading({
 const styles = StyleSheet.create({
   wrap: {
     marginBottom: Spacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: Colors.primaryDark,
-    paddingBottom: Spacing.sm,
   },
   row: {
     flexDirection: 'row',
@@ -38,23 +37,26 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     justifyContent: 'space-between',
   },
+  titleWrap: {
+    flexShrink: 1,
+  },
   accent: {
-    width: 6,
-    height: 24,
+    width: 44,
+    height: 3,
+    borderRadius: 2,
     backgroundColor: Colors.saffron,
+    marginTop: 6,
   },
   title: {
     fontWeight: '800',
     color: Colors.primaryDark,
     flexShrink: 1,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
     fontFamily: Fonts.extraBold,
   },
   subtitle: {
     color: Colors.textSecondary,
-    marginTop: 6,
-    marginLeft: 14,
+    marginTop: 8,
     fontWeight: '500',
   },
 });
