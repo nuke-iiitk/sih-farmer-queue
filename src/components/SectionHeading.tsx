@@ -17,8 +17,11 @@ export default function SectionHeading({
     <View style={styles.wrap}>
       <View style={styles.row}>
         <View style={styles.titleWrap}>
-          <Text style={[styles.title, { fontSize: fs(19) }]}>{title}</Text>
-          <View style={styles.accent} />
+          <Text style={[styles.title, { fontSize: fs(20) }]}>{title}</Text>
+          <View style={styles.accentRow}>
+            <View style={[styles.accentSeg, { backgroundColor: Colors.saffron, width: 30 }]} />
+            <View style={[styles.accentSeg, { backgroundColor: Colors.green, width: 14 }]} />
+          </View>
         </View>
         {right}
       </View>
@@ -40,12 +43,15 @@ const styles = StyleSheet.create({
   titleWrap: {
     flexShrink: 1,
   },
-  accent: {
-    width: 44,
-    height: 3,
+  accentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 7,
+  },
+  accentSeg: {
+    height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.saffron,
-    marginTop: 6,
   },
   title: {
     fontWeight: '800',

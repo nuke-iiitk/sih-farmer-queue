@@ -7,7 +7,7 @@ import DemoBadge from '../components/DemoBadge';
 import { PrimaryButton, SecondaryButton } from '../components/PrimaryButton';
 import ScreenShell from '../components/ScreenShell';
 import SectionHeading from '../components/SectionHeading';
-import { Colors, Radius, Spacing, SystemFonts } from '../constants/theme';
+import { Colors, Spacing, SystemFonts } from '../constants/theme';
 import { analyticsSummary } from '../data/mockData';
 import { useI18n } from '../i18n';
 import { path } from '../navigation';
@@ -103,7 +103,6 @@ export default function HomeScreen() {
                 href: path.register,
                 icon: APP_ICONS.personAdd,
                 color: Colors.info,
-                bg: Colors.infoLight,
               },
               {
                 title: t('nav.booking'),
@@ -111,7 +110,6 @@ export default function HomeScreen() {
                 href: path.booking,
                 icon: APP_ICONS.calendar,
                 color: Colors.saffron,
-                bg: Colors.saffronLight,
               },
               {
                 title: t('nav.queue'),
@@ -119,7 +117,6 @@ export default function HomeScreen() {
                 href: path.queue,
                 icon: APP_ICONS.pulse,
                 color: Colors.green,
-                bg: Colors.greenLight,
               },
               {
                 title: t('nav.centres'),
@@ -127,7 +124,6 @@ export default function HomeScreen() {
                 href: path.centres,
                 icon: APP_ICONS.business,
                 color: Colors.primary,
-                bg: Colors.primaryLight,
               },
             ].map((srv, idx) => (
               <Pressable
@@ -139,7 +135,7 @@ export default function HomeScreen() {
                 ]}
                 onPress={() => router.push(srv.href as never)}
               >
-                <View style={[styles.serviceIconWrap, { backgroundColor: srv.bg }]}>
+                <View style={styles.serviceIconWrap}>
                   <AppIcon name={srv.icon} size={22} color={srv.color} />
                 </View>
                 <View style={styles.serviceCopy}>
@@ -351,10 +347,11 @@ const styles = StyleSheet.create({
   serviceItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: Radius.lg,
+    borderRadius: 8, // Bootstrap "rounded-3"
     backgroundColor: Colors.white,
     flexBasis: '100%',
   },
@@ -363,21 +360,17 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   serviceItemPressed: {
-    backgroundColor: Colors.surfaceMuted,
+    backgroundColor: Colors.surfaceAlt, // Bootstrap list-group hover
   },
   serviceIconWrap: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.md,
+    marginRight: 14,
   },
   serviceCopy: {
     flex: 1,
   },
   serviceTitle: {
-    color: Colors.primary,
-    fontWeight: '700',
+    color: Colors.primaryDark,
+    fontWeight: '600',
     marginBottom: 2,
   },
   serviceDesc: {
