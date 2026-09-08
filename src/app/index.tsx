@@ -2,7 +2,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
-import { APP_ICONS, AppIcon } from '../components/AppIcon';
 import DemoBadge from '../components/DemoBadge';
 import { PrimaryButton, SecondaryButton } from '../components/PrimaryButton';
 import ScreenShell from '../components/ScreenShell';
@@ -101,48 +100,38 @@ export default function HomeScreen() {
                 title: t('nav.register'),
                 desc: t('landing.step1Body'),
                 href: path.register,
-                icon: APP_ICONS.personAdd,
-                color: Colors.info,
               },
               {
                 title: t('nav.booking'),
                 desc: t('landing.step3Body'),
                 href: path.booking,
-                icon: APP_ICONS.calendar,
-                color: Colors.saffron,
               },
               {
                 title: t('nav.queue'),
                 desc: t('landing.step5Body'),
                 href: path.queue,
-                icon: APP_ICONS.pulse,
-                color: Colors.green,
               },
               {
                 title: t('nav.centres'),
                 desc: 'View procurement centres and capacities.',
                 href: path.centres,
-                icon: APP_ICONS.business,
-                color: Colors.primary,
               },
             ].map((srv, idx) => (
               <Pressable
                 key={idx}
-                style={({ pressed }) => [
+                style={({ pressed, hovered }) => [
                   styles.serviceItem,
                   wide && styles.serviceItemWide,
+                  hovered && styles.serviceItemHovered,
                   pressed && styles.serviceItemPressed,
                 ]}
                 onPress={() => router.push(srv.href as never)}
               >
-                <View style={styles.serviceIconWrap}>
-                  <AppIcon name={srv.icon} size={22} color={srv.color} />
-                </View>
                 <View style={styles.serviceCopy}>
                   <Text style={[styles.serviceTitle, { fontSize: fs(14) }]}>{srv.title}</Text>
                   <Text style={[styles.serviceDesc, { fontSize: fs(12) }]}>{srv.desc}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+                <Ionicons name="chevron-forward" size={16} color={Colors.primary} style={styles.serviceChevron} />
               </Pressable>
             ))}
           </View>
@@ -354,16 +343,36 @@ const styles = StyleSheet.create({
     borderRadius: 8, // Bootstrap "rounded-3"
     backgroundColor: Colors.white,
     flexBasis: '100%',
+    // Bootstrap-style smooth state transitions (web)
+    transitionProperty: 'background-color, border-color, box-shadow, transform',
+    transitionDuration: '180ms',
+    transitionTimingFunction: 'ease-out',
   },
   serviceItemWide: {
     flexBasis: '46%',
     flexGrow: 1,
   },
-  serviceItemPressed: {
-    backgroundColor: Colors.surfaceAlt, // Bootstrap list-group hover
+  serviceItemHovered: {
+    backgroundColor: Colors.surfaceAlt, // Bootstrap list-group-item-action hover
+    borderColor: Colors.primary,
+    transform: [{ translateY: -2 }],
+    shadowColor: Colors.primaryDark,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
-  serviceIconWrap: {
-    marginRight: 14,
+  serviceItemPressed: {
+    backgroundColor: Colors.surfaceMuted, // Bootstrap active (gray-200)
+    transform: [{ translateY: 0 }],
+    shadowOpacity: 0.05,
+    elevation: 1,
+  },
+  serviceChevron: {
+    marginLeft: 12,
+    transitionProperty: 'transform',
+    transitionDuration: '180ms',
+    transitionTimingFunction: 'ease-out',
   },
   serviceCopy: {
     flex: 1,
