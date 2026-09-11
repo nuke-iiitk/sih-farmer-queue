@@ -100,13 +100,26 @@
   transform: scale(0.97);
 }
 
-/* Focus: no leftover ring once the pointer moves away. A mouse click (or a
-   back-navigation focus restore) leaves the button focused, and Bootstrap
-   paints a blue glow — box-shadow rgba(13,110,253,.5) — around it. Kill the
-   glow and every outline on focus; the hover/press animations above stay.
-   Keyboard users still see focus via the navy fill from .btn:focus-visible. */
+/* Focus: the button must look exactly like its resting state whenever it is
+   focused but not hovered — a mouse click, a back-navigation focus restore, or
+   Tab focus used to leave Bootstrap's blue glow (box-shadow rgba(13,110,253,.5))
+   and/or the navy hover fill painted on. Reset every visual axis back to the
+   resting look; the hover/press animations above are untouched. */
 .fpp-nav-btn:focus,
 .fpp-nav-btn:focus-visible {
   outline: none;
   box-shadow: none;
+  color: var(--bs-btn-color); /* navy label (never the white hover text) */
+  background-color: var(--bs-btn-bg); /* back to transparent, not the hover fill */
+  border-color: var(--bs-btn-border-color); /* navy hairline, no active/dark border */
+}
+
+/* Keyboard-only affordance: Tab focus grows a short navy underline under the
+   label — visible focus for a11y without any ring, glow or fill around the
+   button. Never appears from mouse interaction. */
+.fpp-nav-btn:focus-visible {
+  text-decoration: underline;
+  text-decoration-color: #0d47a1;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
