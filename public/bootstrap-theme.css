@@ -100,8 +100,13 @@
   transform: scale(0.97);
 }
 
-/* Accessible focus ring in saffron */
+/* Focus: no leftover ring once the pointer moves away. A mouse click (or a
+   back-navigation focus restore) leaves the button focused, and Bootstrap
+   paints a blue glow — box-shadow rgba(13,110,253,.5) — around it. Kill the
+   glow and every outline on focus; the hover/press animations above stay.
+   Keyboard users still see focus via the navy fill from .btn:focus-visible. */
+.fpp-nav-btn:focus,
 .fpp-nav-btn:focus-visible {
-  outline: 2px solid #ffb300;
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: none;
 }
