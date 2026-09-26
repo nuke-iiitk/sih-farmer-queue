@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 import { Colors, Fonts, MaxContentWidth, Radius, Spacing } from '../constants/theme';
 import type { MegaLink, MegaSection } from '../data/megaMenu';
@@ -71,8 +81,33 @@ type PanelProps = {
   panelRef: React.RefObject<View | null>;
 };
 
+/**
+ * Panel height budget: a consistent band of 25–30% of the viewport, clamped so
+ * the overlay stays usable on short laptop screens and never swallows the page
+ * on tall ones. Anything that does not fit scrolls *inside* the panel — the page
+ * below the header never reflows.
+ */
+const PANEL_MIN_VH = 0.25;
+const PANEL_MAX_VH = 0.3;
+const MIN_PANEL_HEIGHT = 200;
+const MAX_PANEL_HEIGHT = 380;
+
+/** `{ minHeight, maxHeight }` for the panel shell, in px. */
+function panelHeightFor(viewportHeight: number) {
+  const minHeight = Math.min(
+    Math.round(Math.max(viewportHeight * PANEL_MIN_VH, MIN_PANEL_HEIGHT)),
+    MAX_PANEL_HEIGHT
+  );
+  const maxHeight = Math.min(
+    Math.round(Math.max(viewportHeight * PANEL_MAX_VH, minHeight)),
+    MAX_PANEL_HEIGHT
+  );
+  return { minHeight, maxHeight };
+}
+
 export function MegaMenuPanel({ section, isActive, onNavigate, showAside, panelRef }: PanelProps) {
   const { t, fs } = useI18n();
+  const { height } = useWindowDimensions();
   // Open on the rail that owns the current route, so the panel is contextual.
   const [railKey, setRailKey] = useState(() => {
     const owning = section.rails.find((item) => item.links.some((link) => isActive(link.href)));
@@ -89,111 +124,115 @@ export function MegaMenuPanel({ section, isActive, onNavigate, showAside, panelR
          ordinary links (Tab/Shift+Tab, Enter, middle-click all behave). */
       role="navigation"
       accessibilityLabel={`${section.title} mega menu`}
-      style={[styles.panel, enterStyle(enter)]}
+      style={[styles.panel, panelHeightFor(height), enterStyle(enter)]}
     >
       <View style={styles.inner}>
-        <View style={styles.columns}>
-          {/* Left column — the section's sub-categories. Selecting one re-fills
-              the middle column; the selected row keeps a subtle tint + bar. */}
-          <View style={[styles.rail, showAside ? styles.railWide : styles.railNarrow]}>
-            <Text style={[styles.railHeading, { fontSize: fs(11) }]}>{section.title}</Text>
-            {section.rails.map((item) => {
-              const selected = item.key === rail.key;
-              return (
-                <Pressable
-                  key={item.key}
-                  onPress={() => setRailKey(item.key)}
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: selected }}
-                  {...({ 'aria-expanded': selected } as object)}
-                  accessibilityLabel={item.label}
-                  style={(state) => {
-                    const { pressed, hovered, focused } = state as {
-                      pressed: boolean;
-                      hovered?: boolean;
-                      focused?: boolean;
-                    };
-                    return [
-                      styles.railItem,
-                      (hovered || pressed) && styles.railItemHover,
-                      focused && styles.railItemFocus,
-                      selected && styles.railItemSelected,
-                    ];
-                  }}
-                >
-                  <BootstrapIcon
-                    name={item.icon}
-                    size={15}
-                    color={selected ? Colors.primaryDark : Colors.textMuted}
-                  />
-                  <Text
-                    numberOfLines={2}
-                    style={[
-                      styles.railLabel,
-                      { fontSize: fs(13) },
-                      selected && styles.railLabelSelected,
-                    ]}
+        {/* Everything above the footer scrolls inside the panel: the shell keeps
+            its viewport-bounded height, so the page never reflows. */}
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          <View style={styles.columns}>
+            {/* Left column — the section's sub-categories. Selecting one re-fills
+                the middle column; the selected row keeps a subtle tint + bar. */}
+            <View style={[styles.rail, showAside ? styles.railWide : styles.railNarrow]}>
+              <Text style={[styles.railHeading, { fontSize: fs(11) }]}>{section.title}</Text>
+              {section.rails.map((item) => {
+                const selected = item.key === rail.key;
+                return (
+                  <Pressable
+                    key={item.key}
+                    onPress={() => setRailKey(item.key)}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: selected }}
+                    {...({ 'aria-expanded': selected } as object)}
+                    accessibilityLabel={item.label}
+                    style={(state) => {
+                      const { pressed, hovered, focused } = state as {
+                        pressed: boolean;
+                        hovered?: boolean;
+                        focused?: boolean;
+                      };
+                      return [
+                        styles.railItem,
+                        (hovered || pressed) && styles.railItemHover,
+                        focused && styles.railItemFocus,
+                        selected && styles.railItemSelected,
+                      ];
+                    }}
                   >
-                    {item.label}
-                  </Text>
-                  <BootstrapIcon
-                    name={APP_ICONS.chevronForward}
-                    size={11}
-                    color={selected ? Colors.primary : Colors.borderDark}
-                  />
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Middle column — the selected sub-category's pages. */}
-          <View style={styles.links}>
-            <Text style={[styles.linksHeading, { fontSize: fs(11) }]}>{rail.label}</Text>
-            <View style={styles.linkList}>
-              {rail.links.map((link) => (
-                <Button
-                  key={String(link.href)}
-                  variant="nav"
-                  href={link.href}
-                  label={link.label}
-                  description={link.description}
-                  className="fpp-mega-link"
-                  active={isActive(link.href)}
-                  accessibilityLabel={link.label}
-                  after={
                     <BootstrapIcon
-                      name={APP_ICONS.arrowForward}
-                      size={13}
-                      color={Colors.primary}
+                      name={item.icon}
+                      size={15}
+                      color={selected ? Colors.primaryDark : Colors.textMuted}
                     />
-                  }
-                  onPress={() => onNavigate(link.href)}
-                />
-              ))}
+                    <Text
+                      numberOfLines={2}
+                      style={[
+                        styles.railLabel,
+                        { fontSize: fs(13) },
+                        selected && styles.railLabelSelected,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                    <BootstrapIcon
+                      name={APP_ICONS.chevronForward}
+                      size={11}
+                      color={selected ? Colors.primary : Colors.borderDark}
+                    />
+                  </Pressable>
+                );
+              })}
             </View>
-          </View>
 
-          {/* Right column — related registers (context, not a second copy). */}
-          {showAside ? (
-            <View style={styles.aside}>
-              <Text style={[styles.asideHeading, { fontSize: fs(11) }]}>
-                {section.aside.title}
-              </Text>
-              {section.aside.links.map((link) => (
-                <Button
-                  key={String(link.href)}
-                  variant="nav"
-                  href={link.href}
-                  label={link.label}
-                  description={link.description}
-                  className="fpp-mega-link-sm"
-                  accessibilityLabel={link.label}
-                  onPress={() => onNavigate(link.href)}
-                />
-              ))}
+            {/* Middle column — the selected sub-category's pages. */}
+            <View style={styles.links}>
+              <Text style={[styles.linksHeading, { fontSize: fs(11) }]}>{rail.label}</Text>
+              <View style={styles.linkList}>
+                {rail.links.map((link) => (
+                  <Button
+                    key={String(link.href)}
+                    variant="nav"
+                    href={link.href}
+                    label={link.label}
+                    description={link.description}
+                    className="fpp-mega-link"
+                    active={isActive(link.href)}
+                    accessibilityLabel={link.label}
+                    after={
+                      <BootstrapIcon
+                        name={APP_ICONS.arrowForward}
+                        size={13}
+                        color={Colors.primary}
+                      />
+                    }
+                    onPress={() => onNavigate(link.href)}
+                  />
+                ))}
+              </View>
             </View>
-          ) : null}
-        </View>
+
+            {/* Right column — related registers (context, not a second copy). */}
+            {showAside ? (
+              <View style={styles.aside}>
+                <Text style={[styles.asideHeading, { fontSize: fs(11) }]}>
+                  {section.aside.title}
+                </Text>
+                {section.aside.links.map((link) => (
+                  <Button
+                    key={String(link.href)}
+                    variant="nav"
+                    href={link.href}
+                    label={link.label}
+                    description={link.description}
+                    className="fpp-mega-link-sm"
+                    accessibilityLabel={link.label}
+                    onPress={() => onNavigate(link.href)}
+                  />
+                ))}
+              </View>
+            ) : null}
+          </View>
+        </ScrollView>
 
         {/* Panel footer — the section hub plus the standing portal links. */}
         <View style={styles.footer}>
@@ -304,37 +343,57 @@ export function MegaNavAccordion({
 const styles = StyleSheet.create({
   /* ── Desktop panel shell ─────────────────────────────────────────── */
   panel: {
+    /* Floating overlay: pinned to the bottom edge of the nav row, full width,
+       held inside a 25–30vh band (`minHeight`/`maxHeight` are set inline from
+       the viewport) and scrolling its own content — it never grows the
+       document, so the page under the header never reflows. */
     position: 'absolute',
-    /* Anchored to the nav row, so the panel always sits directly under the
-       header — and outside any clipping parent (the header sets zIndex while
-       a section is open). */
     top: '100%',
     left: 0,
     right: 0,
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    borderBottomLeftRadius: Radius.md,
+    borderBottomRightRadius: Radius.md,
+    overflow: 'hidden',
     zIndex: 1000,
-    boxShadow: '0 12px 28px rgba(10, 32, 77, 0.16)',
+    boxShadow: '0 14px 30px rgba(10, 32, 77, 0.22)',
   },
   inner: {
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
+    paddingTop: 8,
+    paddingBottom: 6,
+    /* Column flex inside the height-bounded shell: the scroll area takes the
+       remaining space and the footer stays pinned at the panel's bottom edge. */
+    flex: 1,
+    minHeight: 0,
+  },
+  scroll: {
+    /* Grows into the panel's min-height slack (so the footer sits at the
+       bottom edge) and shrinks/scrolls when the content exceeds the band. */
+    flexGrow: 1,
+    flexShrink: 1,
+    minHeight: 0,
+  },
+  scrollContent: {
+    /* Keep the natural height (RNW would otherwise stretch the content to the
+       scroll area); the panel only scrolls when the budget is exceeded. */
+    flexGrow: 0,
   },
   columns: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
 
   /* ── Left column: sub-categories ─────────────────────────────────── */
   rail: {
     flexDirection: 'column',
-    gap: 2,
+    gap: 1,
     paddingRight: Spacing.md,
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: Colors.border,
@@ -352,13 +411,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     fontFamily: Fonts.extraBold,
     paddingHorizontal: 10,
-    paddingBottom: 6,
+    paddingBottom: 4,
   },
   railItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 9,
+    paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: Radius.md,
     borderLeftWidth: 3,
@@ -397,22 +456,22 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     fontFamily: Fonts.extraBold,
     paddingHorizontal: 10,
-    paddingBottom: 6,
+    paddingBottom: 4,
   },
   linkList: {
-    gap: 2,
+    gap: 1,
   },
 
   /* ── Right column: related registers ────────────────────────────── */
   aside: {
-    width: 260,
+    width: 250,
     backgroundColor: Colors.surfaceAlt,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: Radius.md,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
-    gap: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    gap: 1,
   },
   asideHeading: {
     color: Colors.textMuted,
@@ -421,8 +480,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     fontFamily: Fonts.extraBold,
     paddingHorizontal: 6,
-    paddingTop: 4,
-    paddingBottom: 4,
+    paddingTop: 2,
+    paddingBottom: 3,
   },
 
   /* ── Footer: section hub + standing portal links ─────────────────── */
@@ -432,8 +491,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: Spacing.sm,
-    marginTop: Spacing.md,
-    paddingTop: Spacing.sm,
+    marginTop: 6,
+    paddingTop: 5,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border,
   },

@@ -93,6 +93,8 @@ export default function GovernmentHeader() {
   /** Trigger wrappers per section + the open panel — web click/focus checks. */
   const triggerRefs = useRef<Record<string, unknown>>({});
   const panelRef = useRef<View | null>(null);
+  /** Measured height of the whole header, so the scrim can start right below it. */
+  const [headerHeight, setHeaderHeight] = useState(0);
   const compact = width < 768;
   const phone = width < 600;
   const openPanel = openSection
@@ -271,7 +273,10 @@ export default function GovernmentHeader() {
   };
 
   return (
-    <View style={[styles.container, openSection ? styles.containerOpen : null]}>
+    <View
+      style={[styles.container, openSection ? styles.containerOpen : null]}
+      onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
+    >
       {/* Utility strip — accessibility controls (desktop/tablet only; on phones
           this row cramped, overlapped and added pure noise). */}
       {!compact ? (
@@ -395,8 +400,15 @@ export default function GovernmentHeader() {
         />
       ) : null}
 
-      {/* Navigation row: hamburger (mobile) or links + search + login (desktop) */}
-      <View style={styles.navRow} accessibilityRole="header" accessibilityLabel={t('nav.menu')}>
+      {/* Navigation row: hamburger (mobile) or links + search + login (desktop).
+          It is a `navigation` landmark, NOT a heading — `accessibilityRole="header"`
+          makes RNW emit an <h1>, and Bootstrap's heading size would then cascade
+          into the mega panel's web links. */}
+      <View
+        style={styles.navRow}
+        role="navigation"
+        accessibilityLabel={t('nav.menu')}
+      >
         {compact ? (
           <>
             <Button
@@ -463,9 +475,19 @@ export default function GovernmentHeader() {
           </>
         )}
 
-        {/* Full-width mega panel: opens on click, anchored under this row so it
-            can never be clipped by the brand/utility bars, and paints above the
-            page (the container raises its z-index while a section is open). */}
+        {/* Page scrim: a fixed, purely visual veil that dims the page behind the
+            open panel so the menu reads as a floating overlay, not a block in
+            the page flow. It is `pointerEvents: 'none'` so it never swallows a
+            click — dismissal stays with the document click-outside listener on
+            web and the native dismiss layer. Fixed positioning (not an absolute
+            box sized in pixels) keeps it from inflating the document height. */}
+        {!compact && openPanel ? (
+          <View style={[styles.scrim, { top: headerHeight }]} pointerEvents="none" />
+        ) : null}
+
+        {/* Compact mega overlay: a full-width panel anchored under this row and
+            held inside a 25–30vh band, so it can never be clipped by the
+            brand/utility bars nor push the page content down. */}
         {!compact && openPanel ? (
           <MegaMenuPanel
             key={openPanel.key}
@@ -771,6 +793,21 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.border,
     flexWrap: 'wrap',
     gap: Spacing.sm,
+    /* The open panel and its page scrim are absolutely positioned against this
+       row, so they hang below the header instead of stretching it. */
+    position: 'relative',
+  },
+  /* Veil over the page content while a mega panel is open. `position: fixed`
+     with all four edges pinned (its top is the measured header height), so it
+     tracks the viewport and never extends the document. Sits below the panel
+     (zIndex 1000) and ignores pointers. */
+  scrim: {
+    position: 'fixed',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(8, 26, 56, 0.28)',
+    zIndex: 900,
   },
   navLinks: {
     flexDirection: 'row',
