@@ -13,11 +13,15 @@ export default function Breadcrumbs({ items }: { items: Crumb[] }) {
   const { t } = useI18n();
   const pathname = usePathname();
 
+  // A Home crumb is always rendered first below — screens that also pass an
+  // explicit Home entry would otherwise render it twice.
+  const crumbs = items.filter((crumb) => crumb.href !== path.home);
+
   return (
     <nav aria-label="breadcrumb" className="breadcrumb-wrap">
       <ol className="breadcrumb mb-0 px-3 py-2">
         <Link href={path.home as string} variant="breadcrumb" label={t('nav.home')} />
-        {items.map((crumb, index) => {
+        {crumbs.map((crumb, index) => {
           const last = index === items.length - 1 || crumb.href === pathname;
           if (crumb.href && !last) {
             return (
