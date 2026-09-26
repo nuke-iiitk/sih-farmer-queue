@@ -1,9 +1,13 @@
 import { Image } from 'expo-image';
 import type { Href } from 'expo-router';
 import { router, usePathname } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -11,7 +15,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-import { Colors, Fonts, Spacing } from '../constants/theme';
+import { Colors, Fonts, Radius, Spacing } from '../constants/theme';
 import { useI18n, type LanguageCode, type TextSizeLevel } from '../i18n';
 import { path } from '../navigation';
 import BootstrapIcon from './BootstrapIcon';
@@ -23,25 +27,88 @@ type NavItem = {
   href: Href;
 };
 
-const NAV_ITEMS: NavItem[] = [
+/** A dropdown category on the desktop bar (and a section in the mobile menu). */
+type NavGroup = {
+  key: string;
+  label: string;
+  items: NavItem[];
+};
+
+/** The two destinations that stay visible as plain links on the bar. */
+const NAV_LINKS: NavItem[] = [
   { key: 'home', label: 'Home', href: path.home },
   { key: 'dashboard', label: 'Dashboard', href: path.dashboard },
-  { key: 'projects', label: 'Projects', href: path.projects },
-  { key: 'parcels', label: 'Land Parcels', href: path.parcels },
-  { key: 'workflow', label: 'Acquisition Workflow', href: path.workflow },
-  { key: 'gis', label: 'GIS Map', href: path.gis },
-  { key: 'awards', label: 'Awards', href: path.awards },
-  { key: 'compensation', label: 'Compensation', href: path.compensation },
-  { key: 'possession', label: 'Possession', href: path.possession },
-  { key: 'rr', label: 'R&R', href: path.rr },
-  { key: 'documents', label: 'Documents', href: path.documents },
-  { key: 'reports', label: 'Reports & Analytics', href: path.reports },
-  { key: 'alerts', label: 'Alerts', href: path.alerts },
-  { key: 'proposal', label: 'Submit Proposal', href: path.proposal },
-  { key: 'admin', label: 'Administration', href: path.administration },
-  { key: 'about', label: 'About', href: path.about },
-  { key: 'help', label: 'Help', href: path.help },
 ];
+
+/**
+ * Every other entry from the original flat menu, grouped into dropdown
+ * categories. Routes are identical to the previous list — this is a pure
+ * navigation-structure change: no page was added, removed, renamed or
+ * duplicated, so all 15 remaining destinations stay reachable.
+ */
+const NAV_GROUPS: NavGroup[] = [
+  {
+    key: 'acquisition',
+    label: 'Acquisition',
+    items: [
+      { key: 'workflow', label: 'Acquisition Workflow', href: path.workflow },
+      { key: 'proposal', label: 'Submit Proposal', href: path.proposal },
+      { key: 'possession', label: 'Possession', href: path.possession },
+      { key: 'alerts', label: 'Alerts', href: path.alerts },
+    ],
+  },
+  {
+    key: 'projects',
+    label: 'Projects',
+    items: [
+      { key: 'projects', label: 'Projects', href: path.projects },
+      { key: 'awards', label: 'Awards', href: path.awards },
+    ],
+  },
+  {
+    key: 'land',
+    label: 'Land & GIS',
+    items: [
+      { key: 'parcels', label: 'Land Parcels', href: path.parcels },
+      { key: 'gis', label: 'GIS Map', href: path.gis },
+    ],
+  },
+  {
+    key: 'compensation',
+    label: 'Compensation & R&R',
+    items: [
+      { key: 'compensation', label: 'Compensation', href: path.compensation },
+      { key: 'rr', label: 'R&R', href: path.rr },
+    ],
+  },
+  {
+    key: 'documents',
+    label: 'Documents',
+    items: [{ key: 'documents', label: 'Documents', href: path.documents }],
+  },
+  {
+    key: 'reports',
+    label: 'Reports',
+    items: [{ key: 'reports', label: 'Reports & Analytics', href: path.reports }],
+  },
+  {
+    key: 'administration',
+    label: 'Administration',
+    items: [{ key: 'admin', label: 'Administration', href: path.administration }],
+  },
+  {
+    key: 'more',
+    label: 'More',
+    items: [
+      { key: 'about', label: 'About', href: path.about },
+      { key: 'help', label: 'Help', href: path.help },
+    ],
+  },
+];
+
+/** Dropdown sizing — deliberately compact, never a mega-menu. */
+const MENU_MIN_WIDTH = 200;
+const MENU_MAX_WIDTH = 240;
 
 /**
  * Bilingual portal title — authentic gov-portal style shows the portal name in
@@ -68,21 +135,116 @@ const TEXT_SIZES: { level: TextSizeLevel; label: string }[] = [
 export default function GovernmentHeader() {
   const { t, fs, setLanguage, language, textSize, setTextSize } = useI18n();
   const pathname = usePathname();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const [search, setSearch] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  /** Key of the open desktop dropdown category (null = all closed). */
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  /** Which edge the open menu is anchored to (keeps it inside the viewport). */
+  const [menuFlipped, setMenuFlipped] = useState(false);
+  /** Shared 0→1 value driving the subtle menu entrance animation. Lazy state
+      keeps the Animated.Value stable without reading a ref during render. */
+  const [menuAnim] = useState(() => new Animated.Value(0));
+  /** Trigger elements per category — used for viewport-edge checks (web). */
+  const groupRefs = useRef<Record<string, unknown>>({});
   const compact = width < 768;
   const phone = width < 600;
 
   const navigate = (href: Href) => {
     setMenuOpen(false);
+    setOpenGroup(null);
     router.push(href as never);
   };
 
+  /**
+   * True when `href` is the current route (or a parent of it). The home route
+   * '/' matches exactly — a plain startsWith('/') would flag every page.
+   */
   const activeHref = (href: Href) => {
     const hrefStr = typeof href === 'string' ? href : String(href);
-    return pathname === hrefStr || pathname.startsWith(hrefStr);
+    if (hrefStr === '/') return pathname === '/';
+    return pathname === hrefStr || pathname.startsWith(`${hrefStr}/`);
   };
+
+  /** Open a category dropdown (or close it when its trigger is pressed again). */
+  const toggleGroup = (group: NavGroup) => {
+    if (openGroup === group.key) {
+      setOpenGroup(null);
+      return;
+    }
+    // Anchor the panel away from the right viewport edge when the trigger sits
+    // close to it, so a dropdown can never overflow the screen.
+    let flip = false;
+    const node = groupRefs.current[group.key] as
+      | { getBoundingClientRect?: () => { right: number } }
+      | null
+      | undefined;
+    if (Platform.OS === 'web' && typeof document !== 'undefined' && node?.getBoundingClientRect) {
+      flip =
+        node.getBoundingClientRect().right + MENU_MAX_WIDTH + 12 >
+        document.documentElement.clientWidth;
+    }
+    setMenuFlipped(flip);
+    setOpenGroup(group.key);
+  };
+
+  // A dropdown never outlives its context: when the route or the viewport
+  // changes, close it during render (React's guarded state-adjustment
+  // pattern) instead of cascading through an effect.
+  const [navContext, setNavContext] = useState({ pathname, width });
+  if (navContext.pathname !== pathname || navContext.width !== width) {
+    setNavContext({ pathname, width });
+    if (openGroup) setOpenGroup(null);
+  }
+
+  // Web dismissal — Escape plus clicks anywhere outside. A click that lands
+  // inside the open category (its trigger button or its panel) belongs to the
+  // control's own React handler; closing first would unmount the panel before
+  // a menu item's onPress could run. So clicks inside the open group are
+  // skipped, and only clicks anywhere else dismiss the dropdown.
+  useEffect(() => {
+    if (!openGroup) return;
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpenGroup(null);
+        setMenuOpen(false);
+      }
+    };
+    const onDocumentClick = (event: MouseEvent) => {
+      const group = groupRefs.current[openGroup] as
+        | { contains?: (node: Node) => boolean }
+        | null
+        | undefined;
+      const target = event.target as Node | null;
+      if (target && typeof group?.contains === 'function' && group.contains(target)) return;
+      setOpenGroup(null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('click', onDocumentClick, true);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('click', onDocumentClick, true);
+    };
+  }, [openGroup]);
+
+  // Subtle entrance (fade + 4px settle). Zero duration honours reduced motion.
+  useEffect(() => {
+    if (!openGroup) return;
+    menuAnim.setValue(0);
+    const reducedMotion =
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    Animated.timing(menuAnim, {
+      toValue: 1,
+      duration: reducedMotion ? 0 : 150,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start();
+  }, [openGroup, menuAnim]);
 
   const skipToContent = () => {
     if (typeof document !== 'undefined') {
@@ -126,8 +288,99 @@ export default function GovernmentHeader() {
     </View>
   );
 
+  /** One desktop category: trigger button + (when open) its dropdown menu. */
+  const renderNavGroup = (group: NavGroup) => {
+    const open = openGroup === group.key;
+    const sectionActive = group.items.some((item) => activeHref(item.href));
+    const on = open || sectionActive;
+    // Web fills the trigger navy when active/open (white caret); native tints
+    // it light blue, so keep the caret dark there for contrast.
+    const caretColor = Platform.OS === 'web' && on ? Colors.white : Colors.primaryDark;
+    return (
+      <View
+        key={group.key}
+        ref={(element) => {
+          groupRefs.current[group.key] = element;
+        }}
+        style={[styles.navGroup, on && styles.navGroupOpen]}
+      >
+        <Button
+          label={group.label}
+          variant="outline-primary"
+          small
+          active={on}
+          expanded={open}
+          className="fpp-nav-btn"
+          accessibilityLabel={`${group.label} menu`}
+          after={<BootstrapIcon name="bi-chevron-down" size={13} color={caretColor} />}
+          onPress={() => toggleGroup(group)}
+        />
+        {open ? renderNavMenu(group) : null}
+      </View>
+    );
+  };
+
+  /** Compact dropdown panel listing a category's existing routes. */
+  const renderNavMenu = (group: NavGroup) => (
+    <Animated.View
+      accessibilityRole="menu"
+      accessibilityLabel={`${group.label} pages`}
+      style={[
+        styles.menu,
+        menuFlipped ? styles.menuAnchorRight : styles.menuAnchorLeft,
+        {
+          opacity: menuAnim,
+          transform: [
+            { translateY: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [-4, 0] }) },
+          ],
+        },
+      ]}
+    >
+      {group.items.map((item, index) => {
+        const isActive = activeHref(item.href);
+        return (
+          <Pressable
+            key={item.key}
+            accessibilityRole="menuitem"
+            accessibilityState={{ selected: isActive }}
+            onPress={() => navigate(item.href)}
+            style={(state) => {
+              // RNW also reports `hovered`/`focused` here; native only `pressed`.
+              const { pressed, hovered, focused } = state as {
+                pressed: boolean;
+                hovered?: boolean;
+                focused?: boolean;
+              };
+              return [
+                styles.menuItem,
+                index < group.items.length - 1 && styles.menuItemDivider,
+                (hovered || pressed) && styles.menuItemTint,
+                focused && styles.menuItemFocus,
+                isActive && styles.menuItemActive,
+              ];
+            }}
+          >
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.menuItemText,
+                { fontSize: fs(14) },
+                isActive && styles.menuItemTextActive,
+              ]}
+            >
+              {item.label}
+            </Text>
+            {isActive ? (
+              <BootstrapIcon name="bi-check-lg" size={15} color={Colors.primary} />
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </Animated.View>
+  );
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, openGroup ? styles.containerOpen : null]}>
       {/* Utility strip — accessibility controls (desktop/tablet only; on phones
           this row cramped, overlapped and added pure noise). */}
       {!compact ? (
@@ -239,6 +492,18 @@ export default function GovernmentHeader() {
         )}
       </View>
 
+      {/* Native-only tap-catcher: dismisses an open dropdown when tapping the
+          brand/utility area (on web the document click listener does this
+          without ever swallowing the user's click). */}
+      {openGroup && Platform.OS !== 'web' ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
+          onPress={() => setOpenGroup(null)}
+          style={styles.dismissLayer}
+        />
+      ) : null}
+
       {/* Navigation row: hamburger (mobile) or links + search + login (desktop) */}
       <View style={styles.navRow} accessibilityRole="header" accessibilityLabel={t('nav.menu')}>
         {compact ? (
@@ -264,7 +529,7 @@ export default function GovernmentHeader() {
         ) : (
           <>
             <View style={styles.navLinks}>
-              {NAV_ITEMS.map((item) => {
+              {NAV_LINKS.map((item) => {
                 const isActive = activeHref(item.href);
                 return (
                   <Button
@@ -273,10 +538,12 @@ export default function GovernmentHeader() {
                     variant="outline-primary"
                     small
                     active={isActive}
+                    className="fpp-nav-btn"
                     onPress={() => navigate(item.href)}
                   />
                 );
               })}
+              {NAV_GROUPS.map(renderNavGroup)}
             </View>
 
             <View style={styles.navRight}>
@@ -310,23 +577,42 @@ export default function GovernmentHeader() {
         )}
       </View>
 
-      {/* Mobile drawer — expands inline under the nav row */}
+      {/* Mobile drawer — grouped sections (same categories as the desktop
+          dropdowns), scrollable so every page stays reachable on short screens */}
       {compact && menuOpen ? (
-        <View style={styles.mobileMenu} accessibilityRole="header" accessibilityLabel={t('nav.menu')}>
-          {NAV_ITEMS.map((item) => {
-            const isActive = activeHref(item.href);
-            return (
-              <Button
-                key={item.key}
-                label={item.label}
-                variant="outline-primary"
-                active={isActive}
-                className="w-100"
-                onPress={() => navigate(item.href)}
-              />
-            );
-          })}
-        </View>
+        <ScrollView
+          style={[styles.mobileMenuScroll, { maxHeight: Math.round(height * 0.55) }]}
+          contentContainerStyle={styles.mobileMenu}
+          keyboardShouldPersistTaps="handled"
+        >
+          {NAV_LINKS.map((item) => (
+            <Button
+              key={item.key}
+              label={item.label}
+              variant="outline-primary"
+              active={activeHref(item.href)}
+              className="w-100"
+              onPress={() => navigate(item.href)}
+            />
+          ))}
+          {NAV_GROUPS.map((group) => (
+            <View key={group.key} style={styles.mobileGroup}>
+              <Text style={[styles.mobileGroupLabel, { fontSize: fs(11) }]}>
+                {group.label}
+              </Text>
+              {group.items.map((item) => (
+                <Button
+                  key={item.key}
+                  label={item.label}
+                  variant="outline-primary"
+                  active={activeHref(item.href)}
+                  className="w-100"
+                  onPress={() => navigate(item.href)}
+                />
+              ))}
+            </View>
+          ))}
+        </ScrollView>
       ) : null}
     </View>
   );
@@ -337,6 +623,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderDark,
+  },
+  /* Lift the header only while a dropdown is open, so the absolutely
+     positioned menu panel paints above the page content below it. */
+  containerOpen: {
+    zIndex: 1,
   },
   utilityBar: {
     flexDirection: 'row',
@@ -568,13 +859,93 @@ const styles = StyleSheet.create({
   navLinks: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
     flexWrap: 'wrap',
+    /* Grow to fill the row, shrink when the viewport is tight (the items then
+       wrap inside instead of pushing the search/login group off screen). */
+    flexGrow: 1,
+    flexShrink: 1,
+    /* Above navRight while a dropdown is open — the panel may overlap it. */
+    zIndex: 1,
   },
   navRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    /* Right-aligned on the first line; right-aligned on its own line when
+       the nav links wrap (auto margins absorb the free space either way). */
+    marginLeft: 'auto',
+  },
+  /* ── Grouped navigation dropdowns ─────────────────────────────── */
+  navGroup: {
+    position: 'relative',
+  },
+  navGroupOpen: {
+    zIndex: 1,
+  },
+  menu: {
+    position: 'absolute',
+    top: '100%',
+    marginTop: 4,
+    minWidth: MENU_MIN_WIDTH,
+    maxWidth: MENU_MAX_WIDTH,
+    paddingTop: 4,
+    paddingBottom: 4,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    overflow: 'hidden',
+    zIndex: 1000,
+    boxShadow: '0 6px 18px rgba(10, 32, 77, 0.18)',
+  },
+  menuAnchorLeft: {
+    left: 0,
+  },
+  menuAnchorRight: {
+    right: 0,
+  },
+  menuItem: {
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    paddingHorizontal: 14,
+    backgroundColor: Colors.white,
+  },
+  menuItemDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  menuItemTint: {
+    backgroundColor: Colors.surfaceMuted,
+  },
+  menuItemFocus: {
+    backgroundColor: Colors.primaryLight,
+  },
+  menuItemActive: {
+    backgroundColor: Colors.primaryLight,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+    paddingLeft: 11,
+  },
+  menuItemText: {
+    color: Colors.text,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  menuItemTextActive: {
+    color: Colors.primaryDark,
+    fontWeight: '800',
+  },
+  dismissLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    /* Extends past the header so page-content taps dismiss the menu too. */
+    height: 100000,
   },
   searchBox: {
     flexDirection: 'row',
@@ -634,12 +1005,28 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  mobileMenu: {
+  mobileMenuScroll: {
     backgroundColor: Colors.white,
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderDark,
+  },
+  mobileMenu: {
     paddingHorizontal: 12,
     paddingVertical: Spacing.sm,
     gap: 6,
+  },
+  mobileGroup: {
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+    gap: 6,
+  },
+  mobileGroupLabel: {
+    color: Colors.primaryDark,
+    fontWeight: '800',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+    paddingHorizontal: 2,
   },
 });

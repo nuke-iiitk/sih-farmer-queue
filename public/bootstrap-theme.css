@@ -91,7 +91,7 @@
 }
 
 /* ────────────────────────────────────────────────────────────
-   Header nav buttons (NavButton.web)
+   Header nav buttons (GovernmentHeader)
    Rectangular Bootstrap outline buttons, side by side with a gap.
    Press feedback is a calm background tint — no scale/squash.
    ──────────────────────────────────────────────────────────── */
@@ -128,6 +128,22 @@
   text-decoration-color: #0d47a1;
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
+}
+
+/* Current section (or an open dropdown trigger): a solid brand-navy fill
+   instead of Bootstrap's default bright blue, so the active item is obvious
+   and stays on-brand. Loaded after bootstrap.min.css, these rules win the
+   specificity tie against .btn-outline-primary.active / :hover / :focus. */
+.fpp-nav-btn.active,
+.fpp-nav-btn.active:hover,
+.fpp-nav-btn.active:focus,
+.fpp-nav-btn.active:focus-visible {
+  background-color: #0a2f6b;
+  border-color: #0a2f6b;
+  color: #fff;
+}
+.fpp-nav-btn.active:focus-visible {
+  text-decoration-color: #fff;
 }
 
 /* ────────────────────────────────────────────────────────────
