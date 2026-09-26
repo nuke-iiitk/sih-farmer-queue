@@ -8,19 +8,38 @@ import { Platform } from 'react-native';
  * and authority, saffron as the secondary accent, and soft surface greys
  * that keep the layout clean and scannable on both desktop and mobile.
  */
-export const Fonts = {
-  // Arial everywhere (system font — no loading needed on any platform).
-  // Weight is carried by the explicit `fontWeight` style next to each usage;
-  // the browser synthesizes the non-true weights from Arial's 400/700 faces.
-  regular: 'Arial',
-  medium: 'Arial',
-  semiBold: 'Arial',
-  bold: 'Arial',
-  extraBold: 'Arial',
-} as const;
 
+/**
+ * Portal type stack. 'IBM Plex Sans Devanagari' follows the Latin family so
+ * Hindi glyphs stay in the Plex world instead of dropping to a system font;
+ * Arial/Helvetica remain as the offline-safe fallback, then the system sans.
+ */
 export const FONT_STACK =
-  "Arial, Helvetica, 'Noto Sans Devanagari', 'Noto Sans Malayalam', -apple-system, 'Segoe UI', Roboto, sans-serif";
+  "'IBM Plex Sans', 'IBM Plex Sans Devanagari', Arial, Helvetica, 'Noto Sans Devanagari', 'Noto Sans Malayalam', -apple-system, 'Segoe UI', Roboto, sans-serif";
+
+/**
+ * The family used by RN style objects.
+ *
+ * Web resolves to the full portal stack: a style object on a component
+ * overrides the stylesheet, so a bare family name would drop the fallbacks and
+ * leave those elements on the browser default (Times) while the woff2 files
+ * are still downloading. Native keeps the single family name — a comma list is
+ * not a valid native font family — and falls back to the platform sans until
+ * IBM Plex ttf files are bundled under assets.
+ */
+const PLEX = Platform.OS === 'web' ? FONT_STACK : 'IBM Plex Sans';
+
+export const Fonts = {
+  // Every token resolves to IBM Plex Sans. On web the four true faces
+  // (400/500/600/700) are self-hosted via /public/ibm-plex.css, so the explicit
+  // `fontWeight` next to each usage selects a real face; 800 falls through to
+  // the 700 Bold face.
+  regular: PLEX,
+  medium: PLEX,
+  semiBold: PLEX,
+  bold: PLEX,
+  extraBold: PLEX,
+} as const;
 
 export const Colors = {
   // Deep navy — government authority (JEE-Main style)
@@ -85,7 +104,8 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors.light;
 
-/** System-level font-family stacks per platform (Arial is the app font). */
+/** Platform font stacks. Web leads with the self-hosted IBM Plex Sans; the
+ *  others are only used for the explicit mono/serif/rounded edge cases. */
 export const SystemFonts = Platform.select({
   ios: {
     sans: 'system-ui',
@@ -100,9 +120,9 @@ export const SystemFonts = Platform.select({
     mono: 'monospace',
   },
   web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, sans-serif",
+    sans: "'IBM Plex Sans', 'IBM Plex Sans Devanagari', Arial, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif",
+    serif: "'IBM Plex Sans', Georgia, 'Times New Roman', serif",
+    rounded: "'IBM Plex Sans', 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, sans-serif",
     mono: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
 });

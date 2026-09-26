@@ -218,7 +218,14 @@ export default function NationalGISMapScreen() {
             <View style={styles.gisCanvas}>
               {/* GIS Grid Coordinates Overlay */}
               <View style={styles.gisCoordinates}>
-                <Text style={styles.coordText}>
+                {/*
+                  The family is applied inline rather than through the
+                  StyleSheet: a class rule from here loses to the site-wide
+                  typography rule inlined in app/+html.tsx, which deliberately
+                  outranks RN Web's own component classes. Inline styles win
+                  that fight, keeping the readout monospaced as intended.
+                */}
+                <Text style={[styles.coordText, { fontFamily: 'monospace' }]}>
                   LAT: {activeProject.lat.toFixed(4)}° N | LNG: {activeProject.lng.toFixed(4)}° E | WGS84 CRS EPSG:4326 | SCALE 1:12,500
                 </Text>
               </View>
@@ -540,7 +547,8 @@ const styles = StyleSheet.create({
   coordText: {
     color: '#00ffcc',
     fontSize: 9,
-    fontFamily: 'monospace',
+    // fontFamily is set inline at the use site so it survives the portal-wide
+    // typography rule — see the comment in the GIS canvas below.
     fontWeight: '700',
   },
   gisMapBackground: {

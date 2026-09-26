@@ -1,7 +1,9 @@
 /* ============================================================
    Brand theme layer over Bootstrap 5 — National Farmer Procurement Portal
    Loaded AFTER bootstrap.min.css; overrides design tokens so Bootstrap
-   components match the gov navy/saffron identity + Arial system font.
+   components match the gov navy/saffron identity + IBM Plex Sans.
+   (The @font-face declarations live in ibm-plex.css, loaded before
+   Bootstrap; this layer only points the Bootstrap tokens at the family.)
    ============================================================ */
 
 :root {
@@ -17,7 +19,7 @@
   --bs-success-rgb: 21, 128, 61;
   --bs-danger: #b3261e;
   --bs-danger-rgb: 179, 38, 30;
-  --bs-body-font-family: Arial, Helvetica, 'Noto Sans Devanagari', 'Noto Sans Malayalam', system-ui, sans-serif;
+  --bs-body-font-family: 'IBM Plex Sans', 'IBM Plex Sans Devanagari', Arial, Helvetica, 'Noto Sans Devanagari', 'Noto Sans Malayalam', system-ui, sans-serif;
   --bs-body-color: #1f2933;
   --bs-border-radius: 4px;
   --bs-border-radius-sm: 3px;
@@ -64,7 +66,7 @@
   outline-color: #0d47a1;
 }
 
-/* Buttons/badges/alerts follow the body font (Arial) */
+/* Buttons/badges/alerts follow the body font (IBM Plex Sans) */
 .btn,
 .badge,
 .alert {
