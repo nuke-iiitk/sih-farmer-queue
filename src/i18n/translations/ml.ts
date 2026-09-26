@@ -95,6 +95,7 @@ export const ml: TranslationDict = {
   'footer.visitors': 'സന്ദർശക എണ്ണം',
   'footer.policies': 'വെബ്സൈറ്റ് നയങ്ങൾ',
   'footer.sitemap': 'സൈറ്റ്മാപ്പ്',
+  'footer.portalInfo': 'പോർട്ടൽ വിവരങ്ങൾ',
 
   // ---------- landing (homepage) notice strip ----------
   'landing.noticeStrip': 'സ്ലോട്ട് ബുക്കിംഗ് ഷെഡ്യൂൾ: പ്രസിദ്ധീകരിച്ച സംഭരണ കലണ്ടർ പ്രകാരം രജിസ്റ്റർ ചെയ്ത കേന്ദ്രങ്ങൾ മുൻകൂർ ബുക്കിംഗ് സ്വീകരിക്കുന്നു.',

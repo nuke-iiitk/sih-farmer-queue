@@ -149,7 +149,95 @@
 }
 
 /* ────────────────────────────────────────────────────────────
-   Reduced motion
+   Mega-menu link cards (MegaMenu.tsx)
+   The panel's page links are borderless links (`nav-link p-0`)
+   dressed as cards here, so hover, keyboard focus and the
+   active (current page) state live in one place. Bootstrap's
+   utilities still own the flex row/gap; this block only sets
+   colour, padding and the description size.
+   ──────────────────────────────────────────────────────────── */
+.fpp-mega-link,
+.fpp-mega-link-sm {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #0a2f6b;
+  font-weight: 600;
+  text-align: left;
+  white-space: normal;
+  line-height: 1.35;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.fpp-mega-link:hover,
+.fpp-mega-link:focus-visible,
+.fpp-mega-link-sm:hover,
+.fpp-mega-link-sm:focus-visible {
+  background-color: #f0f4f8;
+  border-color: #e0e0e0;
+  color: #0d47a1;
+  text-decoration: none;
+}
+/* The label + description stack fills the row so the arrow sits right. */
+.fpp-mega-link > span,
+.fpp-mega-link-sm > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.fpp-mega-link small,
+.fpp-mega-link-sm small {
+  display: block;
+  margin-top: 1px;
+  color: #6c757d;
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: normal;
+}
+.fpp-mega-link > i.bi,
+.fpp-mega-link-sm > i.bi {
+  margin-left: auto;
+  margin-top: 0.15rem;
+}
+/* The page currently open: a calm tint plus the bar's left rule. */
+.fpp-mega-link.active,
+.fpp-mega-link-sm.active {
+  background-color: #e3f2fd;
+  border-color: #e3f2fd;
+  color: #0a2f6b;
+  box-shadow: inset 3px 0 0 #0d47a1;
+}
+.fpp-mega-link-sm {
+  padding: 0.4rem 0.5rem;
+}
+.fpp-mega-link-sm small {
+  font-size: 0.74rem;
+}
+
+/* Panel footer strip: the "View all …" hub and the standing portal links. */
+.fpp-mega-hub {
+  padding: 0.25rem 0.4rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.fpp-mega-hub:hover,
+.fpp-mega-hub:focus-visible {
+  text-decoration: underline;
+}
+.fpp-mega-foot-link {
+  padding: 0.25rem 0.4rem;
+  color: #495057;
+  font-weight: 600;
+  text-decoration: none;
+}
+.fpp-mega-foot-link:hover,
+.fpp-mega-foot-link:focus-visible {
+  color: #0d47a1;
+  text-decoration: underline;
+}
+
    Honour the OS/browser "reduce motion" preference: collapse all
    transitions and animations to zero duration. No decorative
    motion exists in the portal, so this is a safety net for

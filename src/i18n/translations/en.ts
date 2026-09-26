@@ -97,6 +97,7 @@ export const en = {
   'footer.visitors': 'National Transaction Count',
   'footer.policies': 'Website Policies',
   'footer.sitemap': 'Sitemap',
+  'footer.portalInfo': 'Portal Information',
 
   // ---------- landing (home) notice strip ----------
   'landing.noticeStrip': 'National Monitoring Directive: All Section 19 Declarations and Section 23 Awards must be geo-referenced within 15 days.',

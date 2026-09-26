@@ -47,6 +47,8 @@ export type ButtonProps = {
   className?: string;
   /** Marks the button as a disclosure control and exposes expanded state. */
   expanded?: boolean;
+  /** The control opens an overlay (mega panel, drawer) — sets aria-haspopup on web. */
+  haspopup?: boolean;
   accessibilityLabel?: string;
   accessibilityHint?: string;
 };

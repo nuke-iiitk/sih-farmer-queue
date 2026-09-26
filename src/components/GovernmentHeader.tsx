@@ -3,8 +3,6 @@ import type { Href } from 'expo-router';
 import { router, usePathname } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
-  Easing,
   Platform,
   Pressable,
   ScrollView,
@@ -15,100 +13,18 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-import { Colors, Fonts, Radius, Spacing } from '../constants/theme';
+import { Colors, Fonts, Spacing } from '../constants/theme';
+import { MEGA_SECTIONS, type MegaSection } from '../data/megaMenu';
 import { useI18n, type LanguageCode, type TextSizeLevel } from '../i18n';
 import { path } from '../navigation';
 import BootstrapIcon from './BootstrapIcon';
 import Button from './Button';
+import { MegaMenuPanel, MegaNavAccordion, type DomHandle } from './MegaMenu';
 
-type NavItem = {
-  key: string;
-  label: string;
-  href: Href;
-};
-
-/** A dropdown category on the desktop bar (and a section in the mobile menu). */
-type NavGroup = {
-  key: string;
-  label: string;
-  items: NavItem[];
-};
-
-/** The two destinations that stay visible as plain links on the bar. */
-const NAV_LINKS: NavItem[] = [
-  { key: 'home', label: 'Home', href: path.home },
-  { key: 'dashboard', label: 'Dashboard', href: path.dashboard },
-];
-
-/**
- * Every other entry from the original flat menu, grouped into dropdown
- * categories. Routes are identical to the previous list — this is a pure
- * navigation-structure change: no page was added, removed, renamed or
- * duplicated, so all 15 remaining destinations stay reachable.
- */
-const NAV_GROUPS: NavGroup[] = [
-  {
-    key: 'acquisition',
-    label: 'Acquisition',
-    items: [
-      { key: 'workflow', label: 'Acquisition Workflow', href: path.workflow },
-      { key: 'proposal', label: 'Submit Proposal', href: path.proposal },
-      { key: 'possession', label: 'Possession', href: path.possession },
-      { key: 'alerts', label: 'Alerts', href: path.alerts },
-    ],
-  },
-  {
-    key: 'projects',
-    label: 'Projects',
-    items: [
-      { key: 'projects', label: 'Projects', href: path.projects },
-      { key: 'awards', label: 'Awards', href: path.awards },
-    ],
-  },
-  {
-    key: 'land',
-    label: 'Land & GIS',
-    items: [
-      { key: 'parcels', label: 'Land Parcels', href: path.parcels },
-      { key: 'gis', label: 'GIS Map', href: path.gis },
-    ],
-  },
-  {
-    key: 'compensation',
-    label: 'Compensation & R&R',
-    items: [
-      { key: 'compensation', label: 'Compensation', href: path.compensation },
-      { key: 'rr', label: 'R&R', href: path.rr },
-    ],
-  },
-  {
-    key: 'documents',
-    label: 'Documents',
-    items: [{ key: 'documents', label: 'Documents', href: path.documents }],
-  },
-  {
-    key: 'reports',
-    label: 'Reports',
-    items: [{ key: 'reports', label: 'Reports & Analytics', href: path.reports }],
-  },
-  {
-    key: 'administration',
-    label: 'Administration',
-    items: [{ key: 'admin', label: 'Administration', href: path.administration }],
-  },
-  {
-    key: 'more',
-    label: 'More',
-    items: [
-      { key: 'about', label: 'About', href: path.about },
-      { key: 'help', label: 'Help', href: path.help },
-    ],
-  },
-];
-
-/** Dropdown sizing — deliberately compact, never a mega-menu. */
-const MENU_MIN_WIDTH = 200;
-const MENU_MAX_WIDTH = 240;
+/* ── Header navigation ─────────────────────────────────────────────────────
+   The bar carries eight items: Home plus the seven sections defined in
+   `src/data/megaMenu.ts`. Clicking a section opens its full-width mega panel;
+   the structure is data, so adding a page means editing that file alone. */
 
 /**
  * Bilingual portal title — authentic gov-portal style shows the portal name in
@@ -132,27 +48,64 @@ const TEXT_SIZES: { level: TextSizeLevel; label: string }[] = [
   { level: 'large', label: 'A+' },
 ];
 
+/* ── Web-only DOM helpers ──────────────────────────────────────────────────
+   React Native Web renders every View/Pressable as a real element, so the
+   header can use `contains`/`focus` for click-outside, focus-out and
+   focus-restore behaviour. Kept at module scope so the dismissal effect below
+   has no unstable dependencies. */
+type Focusable = { focus?: () => void };
+
+const nodeHandle = (value: unknown) => value as DomHandle | null | undefined;
+
+/** True when `target` sits inside the open section's trigger or its panel. */
+function isInsideOpenPanel(
+  triggerRefs: React.RefObject<Record<string, unknown>>,
+  panelRef: React.RefObject<View | null>,
+  key: string | null,
+  target: Node | null
+) {
+  if (!key || !target) return false;
+  const owners = [nodeHandle(triggerRefs.current[key]), nodeHandle(panelRef.current)];
+  return owners.some((node) => node?.contains?.(target));
+}
+
+/** Hand focus back to the header item that owns the panel. */
+function focusSectionTrigger(
+  triggerRefs: React.RefObject<Record<string, unknown>>,
+  key: string | null
+) {
+  if (!key) return;
+  const wrapper = nodeHandle(triggerRefs.current[key]);
+  const control = wrapper?.querySelectorAll?.('button, a')?.[0] as Focusable | undefined;
+  control?.focus?.();
+}
+
 export default function GovernmentHeader() {
   const { t, fs, setLanguage, language, textSize, setTextSize } = useI18n();
   const pathname = usePathname();
   const { width, height } = useWindowDimensions();
   const [search, setSearch] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
-  /** Key of the open desktop dropdown category (null = all closed). */
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
-  /** Which edge the open menu is anchored to (keeps it inside the viewport). */
-  const [menuFlipped, setMenuFlipped] = useState(false);
-  /** Shared 0→1 value driving the subtle menu entrance animation. Lazy state
-      keeps the Animated.Value stable without reading a ref during render. */
-  const [menuAnim] = useState(() => new Animated.Value(0));
-  /** Trigger elements per category — used for viewport-edge checks (web). */
-  const groupRefs = useRef<Record<string, unknown>>({});
+  /** Key of the open desktop mega section (null = all closed). */
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  /** Key of the expanded section in the mobile drawer accordion (null = none). */
+  const [openMobileSection, setOpenMobileSection] = useState<string | null>(null);
+  /** Trigger wrappers per section + the open panel — web click/focus checks. */
+  const triggerRefs = useRef<Record<string, unknown>>({});
+  const panelRef = useRef<View | null>(null);
   const compact = width < 768;
   const phone = width < 600;
+  const openPanel = openSection
+    ? MEGA_SECTIONS.find((section) => section.key === openSection)
+    : undefined;
+  /** Tablet keeps two columns (sub-categories + pages); the contextual column
+      needs the full desktop width. */
+  const showAside = width >= 1024;
 
   const navigate = (href: Href) => {
     setMenuOpen(false);
-    setOpenGroup(null);
+    setOpenSection(null);
+    setOpenMobileSection(null);
     router.push(href as never);
   };
 
@@ -166,85 +119,78 @@ export default function GovernmentHeader() {
     return pathname === hrefStr || pathname.startsWith(`${hrefStr}/`);
   };
 
-  /** Open a category dropdown (or close it when its trigger is pressed again). */
-  const toggleGroup = (group: NavGroup) => {
-    if (openGroup === group.key) {
-      setOpenGroup(null);
-      return;
-    }
-    // Anchor the panel away from the right viewport edge when the trigger sits
-    // close to it, so a dropdown can never overflow the screen.
-    let flip = false;
-    const node = groupRefs.current[group.key] as
-      | { getBoundingClientRect?: () => { right: number } }
-      | null
-      | undefined;
-    if (Platform.OS === 'web' && typeof document !== 'undefined' && node?.getBoundingClientRect) {
-      flip =
-        node.getBoundingClientRect().right + MENU_MAX_WIDTH + 12 >
-        document.documentElement.clientWidth;
-    }
-    setMenuFlipped(flip);
-    setOpenGroup(group.key);
+  /**
+   * Clicking a header item opens its panel, switches to another section's panel,
+   * or closes the open one. Hover alone never opens anything.
+   */
+  const toggleSection = (key: string) => {
+    setOpenSection((current) => (current === key ? null : key));
   };
 
-  // A dropdown never outlives its context: when the route or the viewport
-  // changes, close it during render (React's guarded state-adjustment
-  // pattern) instead of cascading through an effect.
+  // A panel never outlives its context: when the route or the viewport changes,
+  // close it during render (React's guarded state-adjustment pattern) instead of
+  // cascading through an effect.
   const [navContext, setNavContext] = useState({ pathname, width });
   if (navContext.pathname !== pathname || navContext.width !== width) {
     setNavContext({ pathname, width });
-    if (openGroup) setOpenGroup(null);
+    if (openSection) setOpenSection(null);
   }
 
-  // Web dismissal — Escape plus clicks anywhere outside. A click that lands
-  // inside the open category (its trigger button or its panel) belongs to the
-  // control's own React handler; closing first would unmount the panel before
-  // a menu item's onPress could run. So clicks inside the open group are
-  // skipped, and only clicks anywhere else dismiss the dropdown.
+  // Web dismissal + keyboard behaviour. Clicking is the only way in (hovering a
+  // header item never opens a panel): Escape closes and hands focus back to the
+  // trigger, arrow keys walk the panel's links, and a click or a focus move
+  // anywhere outside the trigger + panel retires the open section.
   useEffect(() => {
-    if (!openGroup) return;
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+    const isInside = (target: Node | null) =>
+      isInsideOpenPanel(triggerRefs, panelRef, openSection, target);
+
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!openSection) return;
       if (event.key === 'Escape') {
         event.preventDefault();
-        setOpenGroup(null);
-        setMenuOpen(false);
+        focusSectionTrigger(triggerRefs, openSection);
+        setOpenSection(null);
+        return;
       }
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      const panel = nodeHandle(panelRef.current);
+      const links = Array.from(panel?.querySelectorAll?.('a[href], button') ?? []);
+      if (!links.length) return;
+      event.preventDefault();
+      const active = document.activeElement as Focusable | null;
+      const index = links.findIndex((item) => item === active);
+      // ArrowDown from the trigger enters the panel; from a link it steps on.
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      const next =
+        index < 0
+          ? step > 0
+            ? 0
+            : links.length - 1
+          : Math.min(Math.max(index + step, 0), links.length - 1);
+      links[next]?.focus?.();
     };
+
     const onDocumentClick = (event: MouseEvent) => {
-      const group = groupRefs.current[openGroup] as
-        | { contains?: (node: Node) => boolean }
-        | null
-        | undefined;
-      const target = event.target as Node | null;
-      if (target && typeof group?.contains === 'function' && group.contains(target)) return;
-      setOpenGroup(null);
+      if (isInside(event.target as Node | null)) return;
+      setOpenSection(null);
     };
+
+    const onFocusIn = (event: FocusEvent) => {
+      if (isInside(event.target as Node | null)) return;
+      setOpenSection(null);
+    };
+
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('click', onDocumentClick, true);
+    document.addEventListener('focusin', onFocusIn);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('click', onDocumentClick, true);
+      document.removeEventListener('focusin', onFocusIn);
     };
-  }, [openGroup]);
-
-  // Subtle entrance (fade + 4px settle). Zero duration honours reduced motion.
-  useEffect(() => {
-    if (!openGroup) return;
-    menuAnim.setValue(0);
-    const reducedMotion =
-      Platform.OS === 'web' &&
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    Animated.timing(menuAnim, {
-      toValue: 1,
-      duration: reducedMotion ? 0 : 150,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: false,
-    }).start();
-  }, [openGroup, menuAnim]);
+  }, [openSection]);
 
   const skipToContent = () => {
     if (typeof document !== 'undefined') {
@@ -288,99 +234,44 @@ export default function GovernmentHeader() {
     </View>
   );
 
-  /** One desktop category: trigger button + (when open) its dropdown menu. */
-  const renderNavGroup = (group: NavGroup) => {
-    const open = openGroup === group.key;
-    const sectionActive = group.items.some((item) => activeHref(item.href));
-    const on = open || sectionActive;
+  /**
+   * One header item: a disclosure button that owns a mega panel. It reads as
+   * active while one of its pages is the current route, or while its panel is
+   * open — the existing bar styling, unchanged.
+   */
+  const renderSectionTrigger = (section: MegaSection) => {
+    const open = openSection === section.key;
+    const on =
+      open || section.rails.some((rail) => rail.links.some((link) => activeHref(link.href)));
     // Web fills the trigger navy when active/open (white caret); native tints
     // it light blue, so keep the caret dark there for contrast.
     const caretColor = Platform.OS === 'web' && on ? Colors.white : Colors.primaryDark;
     return (
       <View
-        key={group.key}
+        key={section.key}
         ref={(element) => {
-          groupRefs.current[group.key] = element;
+          triggerRefs.current[section.key] = element;
         }}
         style={[styles.navGroup, on && styles.navGroupOpen]}
       >
         <Button
-          label={group.label}
+          label={section.label}
           variant="outline-primary"
           small
           active={on}
           expanded={open}
+          haspopup
           className="fpp-nav-btn"
-          accessibilityLabel={`${group.label} menu`}
+          accessibilityLabel={`${section.label} menu`}
           after={<BootstrapIcon name="bi-chevron-down" size={13} color={caretColor} />}
-          onPress={() => toggleGroup(group)}
+          onPress={() => toggleSection(section.key)}
         />
-        {open ? renderNavMenu(group) : null}
       </View>
     );
   };
 
-  /** Compact dropdown panel listing a category's existing routes. */
-  const renderNavMenu = (group: NavGroup) => (
-    <Animated.View
-      accessibilityRole="menu"
-      accessibilityLabel={`${group.label} pages`}
-      style={[
-        styles.menu,
-        menuFlipped ? styles.menuAnchorRight : styles.menuAnchorLeft,
-        {
-          opacity: menuAnim,
-          transform: [
-            { translateY: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [-4, 0] }) },
-          ],
-        },
-      ]}
-    >
-      {group.items.map((item, index) => {
-        const isActive = activeHref(item.href);
-        return (
-          <Pressable
-            key={item.key}
-            accessibilityRole="menuitem"
-            accessibilityState={{ selected: isActive }}
-            onPress={() => navigate(item.href)}
-            style={(state) => {
-              // RNW also reports `hovered`/`focused` here; native only `pressed`.
-              const { pressed, hovered, focused } = state as {
-                pressed: boolean;
-                hovered?: boolean;
-                focused?: boolean;
-              };
-              return [
-                styles.menuItem,
-                index < group.items.length - 1 && styles.menuItemDivider,
-                (hovered || pressed) && styles.menuItemTint,
-                focused && styles.menuItemFocus,
-                isActive && styles.menuItemActive,
-              ];
-            }}
-          >
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.menuItemText,
-                { fontSize: fs(14) },
-                isActive && styles.menuItemTextActive,
-              ]}
-            >
-              {item.label}
-            </Text>
-            {isActive ? (
-              <BootstrapIcon name="bi-check-lg" size={15} color={Colors.primary} />
-            ) : null}
-          </Pressable>
-        );
-      })}
-    </Animated.View>
-  );
-
   return (
-    <View style={[styles.container, openGroup ? styles.containerOpen : null]}>
+    <View style={[styles.container, openSection ? styles.containerOpen : null]}>
       {/* Utility strip — accessibility controls (desktop/tablet only; on phones
           this row cramped, overlapped and added pure noise). */}
       {!compact ? (
@@ -492,14 +383,14 @@ export default function GovernmentHeader() {
         )}
       </View>
 
-      {/* Native-only tap-catcher: dismisses an open dropdown when tapping the
-          brand/utility area (on web the document click listener does this
-          without ever swallowing the user's click). */}
-      {openGroup && Platform.OS !== 'web' ? (
+      {/* Native-only tap-catcher: dismisses an open panel when tapping the
+          brand/utility area (on web the document listener does this without
+          ever swallowing the user's click). */}
+      {openSection && Platform.OS !== 'web' ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
-          onPress={() => setOpenGroup(null)}
+          onPress={() => setOpenSection(null)}
           style={styles.dismissLayer}
         />
       ) : null}
@@ -513,6 +404,7 @@ export default function GovernmentHeader() {
               label={menuOpen ? t('common.close') : t('nav.menu')}
               accessibilityLabel={menuOpen ? t('common.close') : t('nav.menu')}
               expanded={menuOpen}
+              haspopup
               leading={
                 <BootstrapIcon
                   name={menuOpen ? 'bi-x-lg' : 'bi-list'}
@@ -529,21 +421,16 @@ export default function GovernmentHeader() {
         ) : (
           <>
             <View style={styles.navLinks}>
-              {NAV_LINKS.map((item) => {
-                const isActive = activeHref(item.href);
-                return (
-                  <Button
-                    key={item.key}
-                    label={item.label}
-                    variant="outline-primary"
-                    small
-                    active={isActive}
-                    className="fpp-nav-btn"
-                    onPress={() => navigate(item.href)}
-                  />
-                );
-              })}
-              {NAV_GROUPS.map(renderNavGroup)}
+              {/* Home: a plain single-click link — no panel to open. */}
+              <Button
+                label={t('nav.home')}
+                variant="outline-primary"
+                small
+                active={activeHref(path.home)}
+                className="fpp-nav-btn"
+                onPress={() => navigate(path.home)}
+              />
+              {MEGA_SECTIONS.map(renderSectionTrigger)}
             </View>
 
             <View style={styles.navRight}>
@@ -575,43 +462,72 @@ export default function GovernmentHeader() {
             </View>
           </>
         )}
+
+        {/* Full-width mega panel: opens on click, anchored under this row so it
+            can never be clipped by the brand/utility bars, and paints above the
+            page (the container raises its z-index while a section is open). */}
+        {!compact && openPanel ? (
+          <MegaMenuPanel
+            key={openPanel.key}
+            section={openPanel}
+            isActive={activeHref}
+            onNavigate={navigate}
+            showAside={showAside}
+            panelRef={panelRef}
+          />
+        ) : null}
       </View>
 
-      {/* Mobile drawer — grouped sections (same categories as the desktop
-          dropdowns), scrollable so every page stays reachable on short screens */}
+      {/* Mobile drawer — an accordion: the section titles expand in place, so the
+          drawer stays short while every destination stays two taps away. */}
       {compact && menuOpen ? (
         <ScrollView
           style={[styles.mobileMenuScroll, { maxHeight: Math.round(height * 0.55) }]}
           contentContainerStyle={styles.mobileMenu}
           keyboardShouldPersistTaps="handled"
         >
-          {NAV_LINKS.map((item) => (
-            <Button
-              key={item.key}
-              label={item.label}
-              variant="outline-primary"
-              active={activeHref(item.href)}
-              className="w-100"
-              onPress={() => navigate(item.href)}
+          <Button
+            label={t('nav.home')}
+            variant="outline-primary"
+            active={activeHref(path.home)}
+            className="w-100"
+            onPress={() => navigate(path.home)}
+          />
+          {MEGA_SECTIONS.map((section) => (
+            <MegaNavAccordion
+              key={section.key}
+              section={section}
+              isActive={activeHref}
+              onNavigate={navigate}
+              expanded={openMobileSection === section.key}
+              onToggle={() =>
+                setOpenMobileSection((current) =>
+                  current === section.key ? null : section.key
+                )
+              }
             />
           ))}
-          {NAV_GROUPS.map((group) => (
-            <View key={group.key} style={styles.mobileGroup}>
-              <Text style={[styles.mobileGroupLabel, { fontSize: fs(11) }]}>
-                {group.label}
-              </Text>
-              {group.items.map((item) => (
-                <Button
-                  key={item.key}
-                  label={item.label}
-                  variant="outline-primary"
-                  active={activeHref(item.href)}
-                  className="w-100"
-                  onPress={() => navigate(item.href)}
-                />
-              ))}
-            </View>
-          ))}
+          <View style={styles.mobileGroup}>
+            <Text style={[styles.mobileGroupLabel, { fontSize: fs(11) }]}>
+              {t('footer.portalInfo')}
+            </Text>
+            <Button
+              label={t('nav.about')}
+              variant="outline-secondary"
+              small
+              active={activeHref(path.about)}
+              className="w-100"
+              onPress={() => navigate(path.about)}
+            />
+            <Button
+              label={t('nav.help')}
+              variant="outline-secondary"
+              small
+              active={activeHref(path.help)}
+              className="w-100"
+              onPress={() => navigate(path.help)}
+            />
+          </View>
         </ScrollView>
       ) : null}
     </View>
@@ -876,69 +792,16 @@ const styles = StyleSheet.create({
        the nav links wrap (auto margins absorb the free space either way). */
     marginLeft: 'auto',
   },
-  /* ── Grouped navigation dropdowns ─────────────────────────────── */
+  /* ── Header items that own a mega panel ───────────────────────── */
   navGroup: {
     position: 'relative',
   },
   navGroupOpen: {
     zIndex: 1,
   },
-  menu: {
-    position: 'absolute',
-    top: '100%',
-    marginTop: 4,
-    minWidth: MENU_MIN_WIDTH,
-    maxWidth: MENU_MAX_WIDTH,
-    paddingTop: 4,
-    paddingBottom: 4,
-    backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    overflow: 'hidden',
-    zIndex: 1000,
-    boxShadow: '0 6px 18px rgba(10, 32, 77, 0.18)',
-  },
-  menuAnchorLeft: {
-    left: 0,
-  },
-  menuAnchorRight: {
-    right: 0,
-  },
-  menuItem: {
-    minHeight: 38,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-    paddingHorizontal: 14,
-    backgroundColor: Colors.white,
-  },
-  menuItemDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
-  },
-  menuItemTint: {
-    backgroundColor: Colors.surfaceMuted,
-  },
-  menuItemFocus: {
-    backgroundColor: Colors.primaryLight,
-  },
-  menuItemActive: {
-    backgroundColor: Colors.primaryLight,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.primary,
-    paddingLeft: 11,
-  },
-  menuItemText: {
-    color: Colors.text,
-    fontWeight: '600',
-    flexShrink: 1,
-  },
-  menuItemTextActive: {
-    color: Colors.primaryDark,
-    fontWeight: '800',
-  },
+  /* The mega panel itself (rail, link cards, aside, footer) is styled in
+     MegaMenu.tsx; the header only hosts its trigger and the open-state
+     stacking order. */
   dismissLayer: {
     position: 'absolute',
     top: 0,

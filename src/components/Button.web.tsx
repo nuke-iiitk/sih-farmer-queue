@@ -44,6 +44,7 @@ export default function Button({
   after,
   className = '',
   expanded,
+  haspopup,
   accessibilityLabel,
   accessibilityHint,
 }: Props) {
@@ -111,6 +112,7 @@ export default function Button({
       disabled={inactive}
       aria-current={active ? 'page' : undefined}
       aria-expanded={expanded}
+      aria-haspopup={haspopup ? 'true' : undefined}
       aria-busy={loading || undefined}
       aria-label={accessibilityLabel}
       aria-description={accessibilityHint}

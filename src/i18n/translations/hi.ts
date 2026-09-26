@@ -95,6 +95,7 @@ export const hi: TranslationDict = {
   'footer.visitors': 'आगंतुक संख्या',
   'footer.policies': 'वेबसाइट नीतियाँ',
   'footer.sitemap': 'साइटमैप',
+  'footer.portalInfo': 'पोर्टल जानकारी',
 
   // ---------- landing (homepage) notice strip ----------
   'landing.noticeStrip': 'स्लॉट बुकिंग कार्यक्रम: पंजीकृत केंद्रों पर प्रकाशित क्रय कैलेंडर के अनुसार अग्रिम बुकिंग स्वीकार की जाती है।',
